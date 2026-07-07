@@ -1,0 +1,46 @@
+root = true
+
+[*.lua]
+indent_style = space
+indent_size = 4
+tab_width = 4
+continuation_indent = 4
+max_line_length = 100
+quote_style = none
+
+table_separator_style = comma
+trailing_table_separator = smart
+
+space_around_assign_operator = true
+space_after_comma = true
+space_around_math_operator = true
+space_around_logical_operator = true
+space_around_concat_operator = true
+
+space_before_function_open_parenthesis = false
+space_before_function_call_open_parenthesis = false
+space_inside_function_call_parentheses = false
+space_inside_function_param_list_parentheses = false
+
+align_call_args = false
+align_function_params = false
+
+align_continuous_assign_statement = true
+align_continuous_rect_table_field = true
+align_continuous_line_space = 2
+align_array_table = true
+align_continuous_inline_comment = true
+
+align_if_branch = false
+align_chain_expr = none
+
+line_space_after_if_statement = keep
+line_space_after_do_statement = keep
+line_space_after_while_statement = keep
+line_space_after_repeat_statement = keep
+line_space_after_for_statement = keep
+line_space_after_local_or_assign_statement = keep
+line_space_after_function_statement = fixed(1)
+line_space_after_expression_statement = keep
+line_space_after_comment = keep
+line_space_around_block = fixed(1)

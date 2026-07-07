@@ -1,0 +1,110 @@
+# ambient.nvim 简化开发计划
+
+这个文件只记录第一版要做什么。复杂想法先不放这里，避免开发时混乱。
+
+## 第一版只做什么
+
+目标：
+
+```text
+从用户配置的音乐目录里随机选一首歌，用 mpv 播放。
+播放结束后，等待一段随机时间，再播放下一首。
+```
+
+第一版功能：
+
+- 用户配置音乐目录。
+- 检查音乐目录是否存在。
+- 扫描可播放音乐数量。
+- 检查 `mpv` 是否可用。
+- 随机播放音乐。
+- 支持随机播放间隔。
+- 提供几个基础命令。
+- 提供 `:checkhealth ambient`。
+
+## 第一版配置
+
+先只设计这些配置：
+
+```lua
+require("ambient").setup({
+  music_dirs = { "~/Music/ambient" },
+  volume = 20,
+  interval = {
+    min_ms = 2 * 60 * 1000,
+    max_ms = 8 * 60 * 1000,
+  },
+  show_notifications = true,
+})
+```
+
+暂时不做：
+
+- genre。
+- continuous mode。
+- pause。
+- 自动创建目录。
+- 根据 LSP 或文件类型切换音乐。
+
+## 第一版命令
+
+```vim
+:AmbientStart
+:AmbientStop
+:AmbientToggle
+:AmbientNext
+:AmbientStatus
+```
+
+## 错误处理
+
+需要处理三类常见问题：
+
+1. 音乐目录不存在。
+2. `mpv` 不存在。
+3. 目录里没有可播放音乐。
+
+处理方式：
+
+```text
+提示用户，但不要让 Neovim 报错崩掉。
+```
+
+## 推荐实现顺序
+
+```text
+config.lua
+scanner.lua
+player.lua
+scheduler.lua
+commands.lua
+health.lua
+init.lua
+```
+
+每个文件只做一件事：
+
+- `config.lua`：默认配置和配置检查。
+- `scanner.lua`：扫描音乐目录。
+- `player.lua`：调用 `mpv` 播放音乐。
+- `scheduler.lua`：随机选歌和随机等待。
+- `commands.lua`：注册用户命令。
+- `health.lua`：实现 `:checkhealth ambient`。
+- `init.lua`：插件入口。
+
+## Lua 里的配置类型
+
+Lua 本身没有真正的静态类型系统。
+
+Neovim 插件里通常用两层方式保证配置正确：
+
+1. 用 LuaLS 注释写“类型”，给编辑器看。
+2. 用 `vim.validate()` 做运行时检查，给真实用户看。
+
+也就是说：
+
+```text
+LuaLS 类型注释 = 开发时提示和补全
+vim.validate = 运行时防止用户传错配置
+```
+
