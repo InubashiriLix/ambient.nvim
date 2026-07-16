@@ -37,7 +37,7 @@ lazy.nvim 本地开发配置示例：
 ```lua
 return {
   {
-    dir = "/path/to/ambient.nvim",
+    "InubashiriLix/ambient.nvim",
     name = "ambient.nvim",
     main = "ambient",
     event = "VeryLazy",
@@ -60,6 +60,46 @@ return {
       require("ambient").setup(opts)
     end,
   },
+}
+```
+
+- for example:
+
+```lua
+return {
+    {
+        "InubashiriLix/ambient.nvim",
+        name = "ambient.nvim",
+        main = "ambient",
+        event = "VeryLazy",
+        cmd = {
+            "AmbientStart",
+            "AmbientStop",
+            "AmbientToggle",
+            "AmbientNext",
+            "AmbientStatus",
+            "AmbientProgressToggle",
+        },
+        opts = {
+            music_dirs = {
+                "/home/fuckmylife/proj/neovim-plugin/ambient.nvim/test-music",
+            },
+            mode = "continuous",
+            volume = 80,
+            progress = {
+                enabled = true,
+                update_interval_ms = 500,
+                color = {
+                    fg = "#ffffff",
+                    bg = "#ff0000",
+                    gui = "bold",
+                },
+            },
+        },
+        config = function(_, opts)
+            require("ambient").setup(opts)
+        end,
+    },
 }
 ```
 
