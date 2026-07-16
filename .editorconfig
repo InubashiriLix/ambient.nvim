@@ -25,9 +25,9 @@ space_inside_function_param_list_parentheses = false
 align_call_args = false
 align_function_params = false
 
-align_continuous_assign_statement = true
-align_continuous_rect_table_field = true
-align_continuous_line_space = 2
+align_continuous_assign_statement = always
+align_continuous_rect_table_field = always
+align_continuous_line_space = 1
 align_array_table = true
 align_continuous_inline_comment = true
 
@@ -40,7 +40,7 @@ line_space_after_while_statement = keep
 line_space_after_repeat_statement = keep
 line_space_after_for_statement = keep
 line_space_after_local_or_assign_statement = keep
-line_space_after_function_statement = fixed(1)
+line_space_after_function_statement = keep
 line_space_after_expression_statement = keep
 line_space_after_comment = keep
-line_space_around_block = fixed(1)
+line_space_around_block = keep
