@@ -17,21 +17,19 @@ local M = {}
 ---@return AmbientOk<T>
 function M.ok(value)
     return {
-        ok = true,
+        ok    = true,
         value = value,
-        err = nil,
+        err   = nil,
     }
 end
-
 ---@generic E
 ---@param err E
 ---@return AmbientErr<E>
 function M.err(err)
     return {
-        ok = false,
+        ok    = false,
         value = nil,
-        err = err,
+        err   = err,
     }
 end
-
 return M
