@@ -44,8 +44,8 @@ M.State = {
 
 ---@type AmbientMpvIpcConfig
 M.Config = {
-    socket_wait_ready_timeout_ms   = 1000,
-    socket_wait_connect_timeout_ms = 1000,
+    socket_wait_ready_timeout_ms   = 3000,
+    socket_wait_connect_timeout_ms = 3000,
     socket_wait_reply_timeout_ms   = 1000,
 }
 
@@ -59,6 +59,7 @@ M.Config = {
 ---@field job_id? integer
 ---@field socket_path? string
 ---@field pipe? uv.uv_pipe_t
+---@field chan_id? integer
 ---@field request_id integer
 ---@field recv_buf string
 ---@field pending table<integer, AmbientMpvIpcReply>
@@ -70,6 +71,7 @@ M.client = {
     job_id      = nil,
     socket_path = nil,
     pipe        = nil,
+    chan_id     = nil,
     request_id  = 0,
     recv_buf    = "",
     pending     = {},
@@ -89,14 +91,14 @@ M.Command = {
         args = {
             "mpv",
             "--idle=yes",
-            "no-video",
+            "--no-video",
             "--force-window=no",
             "--input-terminal=no",
-            "terminal=no",
+            "--terminal=no",
         },
         make = function(socket_path)
-            local line = string.format("--input-ipc_server=%s", socket_path)
-            return vim.list_extend(M.Command.start_cmd.args, { line })
+            local line = string.format("--input-ipc-server=%s", socket_path)
+            return vim.list_extend(vim.deepcopy(M.Command.start_cmd.args), { line })
         end,
     },
 }
@@ -137,6 +139,26 @@ local function handleIpcLine(line)
     -- mpv event, like file-loaded/end-file/shutdown
     table.insert(M.client.events, decoded)
     return result.ok(nil)
+end
+
+---@param data string[]
+local function handleIpcData(data)
+    if data == nil then
+        return
+    end
+
+    M.client.recv_buf = M.client.recv_buf .. table.concat(data, "\n")
+
+    while true do
+        local idx = M.client.recv_buf:find("\n", 1, true)
+        if idx == nil then
+            break
+        end
+
+        local line = M.client.recv_buf:sub(1, idx - 1)
+        M.client.recv_buf = M.client.recv_buf:sub(idx + 1)
+        handleIpcLine(line)
+    end
 end
 
 ---@param pipe uv.uv_pipe_t
@@ -186,6 +208,9 @@ function M.start()
     M.client.state    = M.State.starting
     local socket_path = makeSocketPath()
     pcall(vim.fn.delete, socket_path)
+    M.client.pending  = {}
+    M.client.events   = {}
+    M.client.recv_buf = ""
 
     ---@type table<string>
     local args = M.Command.start_cmd.make(socket_path)
@@ -197,6 +222,7 @@ function M.start()
             M.client.state  = M.State.closed
             M.client.job_id = nil
             M.client.pipe   = nil
+            M.client.chan_id = nil
         end,
     })
 
@@ -209,39 +235,29 @@ function M.start()
     M.client.job_id      = job_id;
     M.client.socket_path = socket_path;
 
-    local pipe = uv.new_pipe(false)
+    local socket_ready = vim.wait(M.Config.socket_wait_ready_timeout_ms, function()
+        return uv.fs_stat(socket_path) ~= nil
+    end, 20)
 
-    if pipe == nil then
+    if not socket_ready then
         M.stop()
-        return result.err(M.Error.ipc_connect_failed)
+        return result.err(M.Error.socket_wait_timeout)
     end
 
-    local connected       = false
-    local connected_error = nil
+    local ok, chan_id = pcall(vim.fn.sockconnect, "pipe", socket_path, {
+            rpc     = false,
+            on_data = function(_, data, _)
+                handleIpcData(data)
+            end,
+        })
 
-    pipe:connect(socket_path, function(err)
-        if err then
-            connected_error = err
-            return
-        end
-
-        connected = true
-        startReadLoop(pipe)
-    end)
-
-    -- wait for connection
-    local connect_done = vim.wait(M.Config.socket_wait_connect_timeout_ms, function()
-        return connected or connected_error ~= nil
-    end, 10)
-
-    if not connect_done or connected_error ~= nil then
-        pcall(function() pipe:close() end)
+    if not ok or chan_id <= 0 then
         M.stop()
         return result.err(M.Error.socket_connect_failed)
     end
 
-    M.client.pipe  = pipe
-    M.client.state = M.State.started
+    M.client.chan_id = chan_id
+    M.client.state   = M.State.started
 
     return result.ok(nil)
 end
@@ -264,15 +280,8 @@ function M.send(command)
 
     payload = payload .. "\n"
 
-    local write_ok = true
-
-    M.client.pipe:write(payload, function(err)
-        if err then
-            write_ok = false
-        end
-    end)
-
-    if not write_ok then
+    local ok, written = pcall(vim.fn.chansend, M.client.chan_id, payload)
+    if not ok or written <= 0 then
         return result.err(M.Error.write_failed)
     end
 
@@ -316,6 +325,11 @@ function M.request(command, timeout_ms)
     return M.waitReply(sent.value, timeout_ms)
 end
 
+---@return boolean
+function M.isStarted()
+    return M.client.state == M.State.started
+end
+
 ---@return table[]
 function M.drainEvent()
     local events    = M.client.events
@@ -333,6 +347,10 @@ function M.stop()
         end)
     end
 
+    if M.client.chan_id ~= nil then
+        pcall(vim.fn.chanclose, M.client.chan_id)
+    end
+
     if M.client.job_id ~= nil then
         pcall(vim.fn.jobstop, M.client.job_id)
     end
@@ -345,6 +363,7 @@ function M.stop()
     M.client.job_id      = nil
     M.client.socket_path = nil
     M.client.pipe        = nil
+    M.client.chan_id     = nil
     M.client.recv_buf    = ""
     M.client.pending     = {}
     M.client.events      = {}

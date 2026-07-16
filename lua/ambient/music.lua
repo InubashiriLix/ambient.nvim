@@ -34,48 +34,54 @@ M.Error = {
 }
 
 local function getDuration(abs_path)
-    -- TODO: remember to check the ffprobe command is available in the system
-    local cmd = string.format(
-        'ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "%s"',
-        abs_path)
-
-    local handle = io.popen(cmd)
-    if not handle then
+    if vim.fn.executable("ffprobe") == 0 then
         return nil
     end
 
-    local output = handle:read("*a")
-    handle:close()
+    local output = vim.fn.systemlist({
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        abs_path,
+    })
 
-    local seconds = tonumber(output)
+    if vim.v.shell_error ~= 0 or #output == 0 then
+        return nil
+    end
+
+    local seconds = tonumber(output[1])
     if not seconds then
         return nil
     end
+
     return math.floor(seconds * 1000)
 end
 
 ---@param abs_path string
 ---@return AmbientResult<AmbientMusic, AmbientMusicError>
-function M.new(abs_path)
+function M:new(abs_path)
     -- check existence of file
     local file = io.open(abs_path, "r")
     if not file then
         return result.err(self.Error.FILE_NOT_REACHABLE)
     end
-    -- get name
-    local name        = abs_path:match("([^/]+)%.[^%.]+$")
-    -- get duration_ms
-    local duration_ms = getDuration(abs_path)
-    if duration_ms == nil then
-        return result.err(self.Error.DURATION_PARSE_FAILED)
-    end
+    file:close()
 
-    local modify_time, create_time, change_time
+    -- get name
+    local name        = abs_path:match("([^/]+)%.[^%.]+$") or abs_path:match("([^/]+)$")
+    -- get duration_ms
+    local duration_ms = getDuration(abs_path) or 0
+
+    local modify_time, create_time, change_time = 0, 0, 0
     local stat = vim.uv.fs_stat(abs_path)
     if stat then
-        modify_time = stat.mtime.sec
-        change_time = stat.ctime.sec
-        create_time = stat.birthtime.sec
+        modify_time = stat.mtime and stat.mtime.sec or 0
+        change_time = stat.ctime and stat.ctime.sec or 0
+        create_time = stat.birthtime and stat.birthtime.sec or 0
     end
 
     ---@type AmbientMusic
@@ -145,6 +151,10 @@ function M.new(abs_path)
 
         setCursorTime = function(self, time_ms)
             self.cursor_time_ms  = time_ms
+            if self.duration_ms <= 0 then
+                self.proc_percentage = 0
+                return
+            end
             self.proc_percentage = math.floor((self.cursor_time_ms / self.duration_ms) * 100)
         end,
 

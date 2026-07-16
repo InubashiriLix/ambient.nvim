@@ -27,9 +27,10 @@ M.Error = {
 ---| "random"
 
 
----to be honest, I think I'm writing java
 ---use iterator methods here. Noted that I prefer cursor mode than iterator one, cause' the future dev
 ---might need enough detail about the playlist. while the iterator mode is not enough for that...
+---to be honest, I think I'm writing lua in java's style, but somehow it feels better...
+---fuck me
 
 ---@class AmbientPlayList
 ---@field abs_path string
@@ -65,29 +66,41 @@ local function scanDir(abs_path, ext, recursive_depth)
     -- scan it with depth
     local ext_set       = {}
     for _, e in ipairs(ext) do
-        ext_set[e] = true
+        ext_set[tostring(e):lower():gsub("^%.", "")] = true
     end
 
     local function scan(dir, depth)
+        if depth <= 0 then return result.ok(nil) end
+
         local req = vim.uv.fs_scandir(dir)
-        if depth <= 0 then return end
         if not req then return result.err(M.Error.SCAN_FAILED) end
+
         while true do
             local name, type = vim.uv.fs_scandir_next(req)
             if not name then break end
             local full_path = dir .. "/" .. name
             if type == "file" then
                 local file_ext = name:match("%.([^%.]+)$")
+                file_ext       = file_ext and file_ext:lower()
                 if file_ext and ext_set[file_ext] then
                     table.insert(abs_path_list, full_path)
                 end
             elseif type == "directory" then
-                scan(full_path, depth - 1)
+                local child_result = scan(full_path, depth - 1)
+                if not child_result.ok then
+                    return child_result
+                end
             end
         end
+
+        return result.ok(nil)
     end
 
-    scan(abs_path, recursive_depth)
+    local scan_result = scan(abs_path, recursive_depth)
+    if not scan_result.ok then
+        return scan_result
+    end
+
     return result.ok(abs_path_list)
 end
 
@@ -99,24 +112,37 @@ end
 ---@param sort_field SortField | nil
 ---@param sort_direction SortDirection | nil
 ---@return AmbientResult<AmbientPlayList, AmbientPlayListError>
-function M.new(abs_path, ext, recursive_depth, sort_field, sort_direction)
+function M:new(abs_path, ext, recursive_depth, sort_field, sort_direction)
+    recursive_depth = recursive_depth or 1
+    ext             = ext or { "mp3", "ogg", "flac", "wav" }
+    sort_field      = sort_field or "random"
+    sort_direction  = sort_direction or "asc"
+
     -- check path existence
     local stat = vim.uv.fs_stat(abs_path)
     if stat == nil then
-        return result.err(self.Error.PATH_NOT_EXIST)
+        return result.err(M.Error.PATH_NOT_EXIST)
     elseif stat.type ~= "directory" then
-        return result.err(self.Error.PATH_NOT_DIR)
+        return result.err(M.Error.PATH_NOT_DIR)
     end
 
     -- parse other args
     if recursive_depth <= 0 then return result.err(M.Error.INVALID_ARGUMENT) end
-    recursive_depth = recursive_depth or 1
-    ext             = ext or { "mp3", "wav", "flac" }
+    if sort_field ~= "name"
+        and sort_field ~= "duration"
+        and sort_field ~= "modify_time"
+        and sort_field ~= "create_time"
+        and sort_field ~= "random" then
+        return result.err(M.Error.INVALID_ARGUMENT)
+    end
+    if sort_direction ~= "asc" and sort_direction ~= "desc" then
+        return result.err(M.Error.INVALID_ARGUMENT)
+    end
 
     -- scan the diretory first
     local scan_result = scanDir(abs_path, ext, recursive_depth)
     if not scan_result.ok then
-        return result.err(self.Error.SCAN_FAILED)
+        return result.err(M.Error.SCAN_FAILED)
     end
     -- load all music items
     ---@type AmbientMusic[]
@@ -124,14 +150,11 @@ function M.new(abs_path, ext, recursive_depth, sort_field, sort_direction)
     for _, music_path in ipairs(scan_result.value) do
         local r = music:new(music_path)
         if not r.ok then
-            return result.err(self.Error.SCAN_FAILED)
+            return result.err(M.Error.SCAN_FAILED)
         else
             table.insert(musics, r.value)
         end
     end
-
-    sort_field     = sort_field or "random"
-    sort_direction = sort_direction or "asc"
 
     ---@type AmbientPlayList
     local obj = {
@@ -143,6 +166,7 @@ function M.new(abs_path, ext, recursive_depth, sort_field, sort_direction)
         sort_field     = sort_field,
         sort_direction = sort_direction,
 
+        -- NOTE: these methods are diagnosed with self shadowing, not good. next refactor aim.
         isEmpty = function(self)
             return #self.musics == 0
         end,
@@ -151,14 +175,14 @@ function M.new(abs_path, ext, recursive_depth, sort_field, sort_direction)
             -- we shall scan the directory again, and update the music list
             local scan_result = scanDir(self.abs_path, ext, recursive_depth)
             if not scan_result.ok then
-                return result.err(self.Error.SCAN_FAILED)
+                return result.err(M.Error.SCAN_FAILED)
             end
             ---@type AmbientMusic[]
             local musics = {}
             for _, music_path in ipairs(scan_result.value) do
                 local r = music:new(music_path)
                 if not r.ok then
-                    return result.err(self.Error.SCAN_FAILED)
+                    return result.err(M.Error.SCAN_FAILED)
                 else
                     table.insert(musics, r.value)
                 end
@@ -177,6 +201,7 @@ function M.new(abs_path, ext, recursive_depth, sort_field, sort_direction)
         setSortMethod = function(self, field, direction)
             self.sort_field     = field;
             self.sort_direction = direction;
+            self:sort()
         end,
 
         sort = function(self)

@@ -1,0 +1,371 @@
+*ambient.nvim*               Ambient music scheduler for Neovim
+
+==============================================================================
+CONTENTS                                                   *ambient-contents*
+
+1. Introduction                                      |ambient-introduction|
+2. Requirements                                      |ambient-requirements|
+3. Setup                                             |ambient-setup|
+4. Commands                                          |ambient-commands|
+5. Playback modes                                    |ambient-modes|
+6. Playlists                                         |ambient-playlists|
+7. Statusline progress                               |ambient-progress|
+8. Configuration                                     |ambient-config|
+9. Lua API                                           |ambient-api|
+10. Health check                                     |ambient-health|
+11. Troubleshooting                                  |ambient-troubleshooting|
+
+==============================================================================
+INTRODUCTION                                           *ambient-introduction*
+
+ambient.nvim plays local music in a game-like ambient style. It can play a
+track, wait for a quiet interval, then schedule the next track. It can also run
+in continuous playback modes.
+
+The plugin delegates audio playback to `mpv`.
+
+==============================================================================
+REQUIREMENTS                                           *ambient-requirements*
+
+Required:
+
+- Neovim
+- mpv
+
+Optional:
+
+- ffprobe       Used to read track duration for better progress reporting.
+- lualine.nvim  Used for the automatic statusline progress component.
+
+Check your environment with:
+>
+  :checkhealth ambient
+<
+
+==============================================================================
+SETUP                                                         *ambient-setup*
+
+Minimal setup:
+>
+  require("ambient").setup({
+    music_dirs = {
+      "~/Music/ambient",
+    },
+    mode = "interval_random",
+    volume = 20,
+  })
+<
+
+lazy.nvim local development example:
+>
+  return {
+    {
+      dir = "/path/to/ambient.nvim",
+      name = "ambient.nvim",
+      main = "ambient",
+      event = "VeryLazy",
+      cmd = {
+        "AmbientStart",
+        "AmbientStop",
+        "AmbientToggle",
+        "AmbientNext",
+        "AmbientStatus",
+        "AmbientProgressToggle",
+      },
+      opts = {
+        music_dirs = {
+          "~/Music/ambient",
+        },
+        mode = "interval_random",
+        volume = 20,
+      },
+      config = function(_, opts)
+        require("ambient").setup(opts)
+      end,
+    },
+  }
+<
+
+==============================================================================
+COMMANDS                                                 *ambient-commands*
+
+                                                        *:AmbientStart*
+:AmbientStart
+    Start scheduling and playback.
+
+                                                        *:AmbientStop*
+:AmbientStop
+    Stop scheduling and stop the current track.
+
+                                                        *:AmbientToggle*
+:AmbientToggle
+    Toggle between active playback/scheduling and stopped.
+
+                                                        *:AmbientNext*
+:AmbientNext
+    Play the next track immediately.
+
+                                                        *:AmbientStatus*
+:AmbientStatus
+    Show the current scheduler status with |vim.notify()|.
+
+                                                        *:AmbientProgressToggle*
+:AmbientProgressToggle
+    Show or hide the statusline progress component.
+
+==============================================================================
+PLAYBACK MODES                                             *ambient-modes*
+
+interval_random
+    Random playback. After each track, wait for a random interval.
+
+interval_sequential
+    Sequential playback. After each track, wait for a random interval.
+
+without_interval_random
+    Random continuous playback.
+
+without_interval_sequential
+    Sequential continuous playback.
+
+intermittently
+    Alias for interval_random.
+
+continuous
+    Alias for without_interval_random.
+
+The `interval.min_ms` and `interval.max_ms` options only affect interval modes.
+
+==============================================================================
+PLAYLISTS                                             *ambient-playlists*
+
+Use multiple directories:
+>
+  require("ambient").setup({
+    music_dirs = {
+      "~/Music/ambient",
+      "~/Music/piano",
+    },
+  })
+<
+
+Use explicit playlists:
+>
+  require("ambient").setup({
+    playlists = {
+      {
+        abs_path = "~/Music/ambient",
+        ext = { "mp3", "ogg", "flac", "wav" },
+        recursive_depth = 4,
+        sort_field = "random",
+        sort_direction = "asc",
+      },
+      {
+        abs_path = "~/Music/piano",
+        ext = { "mp3", "flac" },
+        recursive_depth = 2,
+        sort_field = "name",
+        sort_direction = "asc",
+      },
+    },
+  })
+<
+
+Playlist fields:
+
+abs_path
+    Music directory.
+
+ext
+    File extensions to scan.
+
+recursive_depth
+    Maximum directory recursion depth.
+
+sort_field
+    One of: random, name, duration, modify_time, create_time.
+
+sort_direction
+    Either asc or desc.
+
+==============================================================================
+STATUSLINE PROGRESS                                      *ambient-progress*
+
+When lualine.nvim is available, ambient.nvim registers a progress component at
+the front of `lualine_x`.
+
+Example:
+>
+  require("ambient").setup({
+    progress = {
+      enabled = true,
+      update_interval_ms = 500,
+      color = {
+        fg = "#ffffff",
+        bg = "#5b7ee5",
+        gui = "bold",
+      },
+    },
+  })
+<
+
+Toggle it with:
+>
+  :AmbientProgressToggle
+<
+
+If you do not use lualine, call `require("ambient").statusline()` from your own
+statusline.
+
+==============================================================================
+CONFIGURATION                                             *ambient-config*
+
+Default-shaped configuration:
+>
+  require("ambient").setup({
+    enable = true,
+    music_dir = "~/.config/nvim/ambient.music",
+    music_dirs = nil,
+    playlists = nil,
+    extensions = { "mp3", "ogg", "flac", "wav", "m4a", "aac", "opus" },
+    recursive_depth = 4,
+    mode = "interval_random",
+    volume = 50,
+    interval = {
+      min_ms = 2 * 60 * 1000,
+      max_ms = 5 * 60 * 1000,
+    },
+    progress = {
+      enabled = false,
+      update_interval_ms = 500,
+      color = {
+        fg = "#ffffff",
+        bg = "#5b7ee5",
+        gui = "bold",
+      },
+    },
+    show_notifications = true,
+    show_notification = {
+      disable_all = false,
+      when_finish_setup = true,
+      when_show_total_music_count = true,
+      when_start_playing = true,
+      when_toggle_playing_state = true,
+    },
+  })
+<
+
+Important options:
+
+enable
+    Set to false to disable playback through |:AmbientStart|.
+
+music_dir
+    Single music directory.
+
+music_dirs
+    List of music directories. If set, replaces music_dir.
+
+playlists
+    Full playlist definitions. If set, replaces music_dir and music_dirs.
+
+extensions
+    Default file extensions for directory-based playlists.
+
+recursive_depth
+    Default recursion depth for directory scanning.
+
+mode
+    Playback mode. See |ambient-modes|.
+
+volume
+    Value passed to `mpv --volume`. Valid range: 0 to 100.
+
+interval.min_ms, interval.max_ms
+    Random silent interval bounds, in milliseconds.
+
+progress.enabled
+    Whether the statusline progress component starts visible.
+
+progress.update_interval_ms
+    Statusline refresh interval.
+
+progress.color
+    lualine color table. Supports `fg`, `bg`, and `gui`.
+
+show_notifications
+    Boolean shorthand. Set to false to disable all notifications.
+
+show_notification
+    Fine-grained notification switches.
+
+==============================================================================
+LUA API                                                     *ambient-api*
+
+require("ambient").setup(opts)                         *ambient.setup()*
+    Configure ambient.nvim and scan playlists.
+
+require("ambient").start()                             *ambient.start()*
+    Start scheduling and playback.
+
+require("ambient").stop()                              *ambient.stop()*
+    Stop scheduling and playback.
+
+require("ambient").toggle()                            *ambient.toggle()*
+    Toggle between active and stopped.
+
+require("ambient").next()                              *ambient.next()*
+    Play the next track immediately.
+
+require("ambient").status()                            *ambient.status()*
+    Return the scheduler status result.
+
+require("ambient").toggle_progress()                   *ambient.toggle_progress()*
+    Toggle the statusline progress component.
+
+require("ambient").show_progress()                     *ambient.show_progress()*
+    Show the statusline progress component.
+
+require("ambient").hide_progress()                     *ambient.hide_progress()*
+    Hide the statusline progress component.
+
+require("ambient").statusline()                        *ambient.statusline()*
+    Return the text rendered by the statusline progress component.
+
+==============================================================================
+HEALTH CHECK                                             *ambient-health*
+
+Run:
+>
+  :checkhealth ambient
+<
+
+The health check reports:
+
+- whether mpv is installed
+- whether ffprobe is installed
+- current mode and volume after setup
+- whether configured music directories exist
+
+==============================================================================
+TROUBLESHOOTING                                 *ambient-troubleshooting*
+
+No sound:
+    Confirm that `mpv` is installed and your system audio output works. Also
+    check that `volume` is not 0.
+
+No duration or progress percentage:
+    Install `ffprobe`. Playback still works without it, but the plugin cannot
+    read exact track duration.
+
+No statusline progress:
+    Confirm that `progress.enabled = true` and that lualine.nvim is installed.
+    Without lualine, add `require("ambient").statusline()` to your own
+    statusline.
+
+No tracks found:
+    Check `music_dir`, `music_dirs`, or `playlists`, and verify that the file
+    extension is listed in `extensions` or the playlist's `ext`.
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
