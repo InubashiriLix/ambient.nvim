@@ -15,19 +15,19 @@ local default_config = {
     },
 }
 
-M.config = vim.deepcopy(default_config)
-M.visible = false
-M.timer   = nil
-M.lualine_registered = false
+M.config                     = vim.deepcopy(default_config)
+M.visible                    = false
+M.timer                      = nil
+M.lualine_registered         = false
 M.lualine_autocmd_registered = false
 
 ---@param ms integer?
 ---@return string
 local function formatTime(ms)
-    ms = ms or 0
+    ms                  = ms or 0
     local total_seconds = math.floor(ms / 1000)
-    local minutes = math.floor(total_seconds / 60)
-    local seconds = total_seconds % 60
+    local minutes       = math.floor(total_seconds / 60)
+    local seconds       = total_seconds % 60
     return string.format("%d:%02d", minutes, seconds)
 end
 
@@ -61,16 +61,16 @@ end
 ---@param component table
 ---@return boolean
 local function applyLualineComponentOptions(component)
-    local color = componentColor()
+    local color     = componentColor()
     local separator = { left = "", right = "" }
-    local padding = { left = 1, right = 1 }
-    local changed = not vim.deep_equal(component.color, color)
+    local padding   = { left = 1, right = 1 }
+    local changed   = not vim.deep_equal(component.color, color)
         or not vim.deep_equal(component.separator, separator)
         or not vim.deep_equal(component.padding, padding)
 
-    component.color = color
-    component.separator = separator
-    component.padding = padding
+    component.color            = color
+    component.separator        = separator
+    component.padding          = padding
     component.ambient_progress = true
 
     return changed
@@ -100,8 +100,8 @@ local function registerLualine()
         return
     end
 
-    local cfg = lualine.get_config()
-    cfg.sections = cfg.sections or {}
+    local cfg              = lualine.get_config()
+    cfg.sections           = cfg.sections or {}
     cfg.sections.lualine_x = cfg.sections.lualine_x or {}
 
     for _, component in ipairs(cfg.sections.lualine_x) do
@@ -132,10 +132,11 @@ local function ensureLualineRegistration()
     end
 
     M.lualine_autocmd_registered = true
-    local group = vim.api.nvim_create_augroup("ambient_lualine_progress", { clear = true })
+    local group                  = vim.api.nvim_create_augroup("ambient_lualine_progress",
+        { clear = true })
     vim.api.nvim_create_autocmd("User", {
-        group = group,
-        pattern = { "VeryLazy", "LazyVimStarted" },
+        group    = group,
+        pattern  = { "VeryLazy", "LazyVimStarted" },
         callback = function()
             vim.schedule(registerLualine)
         end,
@@ -174,7 +175,7 @@ end
 local function renderStatusline(status)
     if status.state == schedule.State.PLAYING then
         local percentage = status.progress_percentage or 0
-        local name = truncate(status.current_music_name or "ambient", 18)
+        local name       = truncate(status.current_music_name or "ambient", 18)
         return string.format(
             "%s/%s (%s) (%d%%)",
             formatTime(status.current_time_ms),
@@ -202,7 +203,7 @@ end
 ---@param config AmbientConfig
 ---@return AmbientResult<nil, nil>
 function M:setup(config)
-    self.config = vim.tbl_deep_extend("force", vim.deepcopy(default_config), config.progress or {})
+    self.config  = vim.tbl_deep_extend("force", vim.deepcopy(default_config), config.progress or {})
     self.visible = self.config.enabled == true
     ensureLualineRegistration()
 

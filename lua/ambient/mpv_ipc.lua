@@ -155,7 +155,7 @@ local function handleIpcData(data)
             break
         end
 
-        local line = M.client.recv_buf:sub(1, idx - 1)
+        local line        = M.client.recv_buf:sub(1, idx - 1)
         M.client.recv_buf = M.client.recv_buf:sub(idx + 1)
         handleIpcLine(line)
     end
@@ -219,9 +219,9 @@ function M.start()
     local job_id = vim.fn.jobstart(args, {
         detach  = false,
         on_exit = function(_, _) -- on exit callback
-            M.client.state  = M.State.closed
-            M.client.job_id = nil
-            M.client.pipe   = nil
+            M.client.state   = M.State.closed
+            M.client.job_id  = nil
+            M.client.pipe    = nil
             M.client.chan_id = nil
         end,
     })
@@ -245,11 +245,11 @@ function M.start()
     end
 
     local ok, chan_id = pcall(vim.fn.sockconnect, "pipe", socket_path, {
-            rpc     = false,
-            on_data = function(_, data, _)
-                handleIpcData(data)
-            end,
-        })
+        rpc     = false,
+        on_data = function(_, data, _)
+            handleIpcData(data)
+        end,
+    })
 
     if not ok or chan_id <= 0 then
         M.stop()

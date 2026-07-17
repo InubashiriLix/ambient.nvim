@@ -46,7 +46,8 @@ local function formatStatus(status)
     end
 
     if status.state == schedule.State.INTERVAL and status.next_due_in_ms ~= nil then
-        return string.format("Ambient: %s, next in %ds", status.state, math.ceil(status.next_due_in_ms / 1000))
+        return string.format("Ambient: %s, next in %ds", status.state,
+            math.ceil(status.next_due_in_ms / 1000))
     end
 
     if status.last_error ~= nil then

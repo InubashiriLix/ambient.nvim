@@ -55,7 +55,7 @@ M.state = {
     last_error      = nil,
 }
 
-M.events = {}
+M.events        = {}
 M.stopping_jobs = {}
 
 ---@param err AmbientPlayerError
@@ -149,7 +149,7 @@ function M:play(music)
 
     local job_id
     job_id = vim.fn.jobstart(args, {
-        detach = false,
+        detach  = false,
         on_exit = function(_, code)
             local reason = "eof"
             if M.stopping_jobs[job_id] then
@@ -233,7 +233,7 @@ end
 ---@return AmbientResult<nil, AmbientPlayerError>
 function M:stop()
     if self.state.job_id ~= nil then
-        self.state.stopping = true
+        self.state.stopping                   = true
         self.stopping_jobs[self.state.job_id] = true
         pcall(vim.fn.jobstop, self.state.job_id)
     end
@@ -276,7 +276,7 @@ function M:getProgress()
     elapsed_ms = math.max(0, elapsed_ms)
 
     local duration_ms = self.state.current.duration_ms or 0
-    local percentage = 0
+    local percentage  = 0
     if duration_ms > 0 then
         elapsed_ms = math.min(elapsed_ms, duration_ms)
         percentage = math.max(0, math.min(100, math.floor((elapsed_ms / duration_ms) * 100)))
@@ -294,7 +294,7 @@ end
 ---@return table[]
 function M:drainEvents()
     local events = self.events
-    self.events = {}
+    self.events  = {}
     return events
 end
 

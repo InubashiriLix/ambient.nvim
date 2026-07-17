@@ -24,11 +24,11 @@ local uv = vim.uv or vim.loop
 
 ---@enum AmbientScheduleError
 M.Error = {
-    CONFIG_NOT_READY       = "CONFIG_NOT_READY",
-    PLAYLIST_CONFIG_ERROR  = "PLAYLIST_CONFIG_ERROR",
-    EMPTY_PLAYLIST         = "EMPTY_PLAYLIST",
-    PLAYER_ERROR           = "PLAYER_ERROR",
-    TIMER_CREATE_FAILED    = "TIMER_CREATE_FAILED",
+    CONFIG_NOT_READY      = "CONFIG_NOT_READY",
+    PLAYLIST_CONFIG_ERROR = "PLAYLIST_CONFIG_ERROR",
+    EMPTY_PLAYLIST        = "EMPTY_PLAYLIST",
+    PLAYER_ERROR          = "PLAYER_ERROR",
+    TIMER_CREATE_FAILED   = "TIMER_CREATE_FAILED",
 }
 
 ---@enum ScheduleState
@@ -57,16 +57,16 @@ M.State = {
 ---@field next_due_in_ms? integer
 ---@field last_error? string
 
-M.state                  = M.State.INIT
-M.config                 = nil
-M.playlists              = {}
-M.playlist_cursor        = 1
-M.current_music          = nil
-M.total_music_count      = 0
-M.interval_timer         = nil
-M.event_timer            = nil
-M.next_due_time_ms       = nil
-M.last_error             = nil
+M.state                   = M.State.INIT
+M.config                  = nil
+M.playlists               = {}
+M.playlist_cursor         = 1
+M.current_music           = nil
+M.total_music_count       = 0
+M.interval_timer          = nil
+M.event_timer             = nil
+M.next_due_time_ms        = nil
+M.last_error              = nil
 M.random_seed_initialized = false
 
 local playNow
@@ -193,7 +193,7 @@ local function takeNextMusic()
 
     for _ = 1, #M.playlists do
         local playlist_index = M.playlist_cursor
-        M.playlist_cursor = (M.playlist_cursor % #M.playlists) + 1
+        M.playlist_cursor    = (M.playlist_cursor % #M.playlists) + 1
 
         local item = M.playlists[playlist_index]
         if not item:isEmpty() then
@@ -259,7 +259,7 @@ scheduleNext = function(delay_ms)
     end
 
     if delay_ms <= 0 then
-        M.state = M.State.NEXT
+        M.state            = M.State.NEXT
         M.next_due_time_ms = nil
         vim.schedule(function()
             if M.state ~= M.State.STOPPED then
@@ -382,9 +382,9 @@ end
 function M:stop()
     closeAllTimers()
     player:shutdown()
-    self.current_music     = nil
-    self.next_due_time_ms  = nil
-    self.state             = self.State.STOPPED
+    self.current_music    = nil
+    self.next_due_time_ms = nil
+    self.state            = self.State.STOPPED
     return result.ok(nil)
 end
 
@@ -434,31 +434,31 @@ function M:get()
         next_due_in_ms = math.max(0, self.next_due_time_ms - uv.now())
     end
 
-    local current_time_ms = nil
-    local duration_ms = nil
+    local current_time_ms     = nil
+    local duration_ms         = nil
     local progress_percentage = nil
 
     if self.state == self.State.PLAYING then
         local progress = player:getProgress()
         if progress.ok then
-            current_time_ms = progress.value.time_ms
-            duration_ms = progress.value.duration_ms
+            current_time_ms     = progress.value.time_ms
+            duration_ms         = progress.value.duration_ms
             progress_percentage = progress.value.percentage
         end
     end
 
     return result.ok({
-        state                = self.state,
-        mode                 = self.config and self.config.mode or nil,
-        playlist_count       = #self.playlists,
-        total_music_count    = self.total_music_count,
-        current_music_name   = self.current_music and self.current_music.name or nil,
-        current_music_path   = self.current_music and self.current_music.abs_path or nil,
-        current_time_ms      = current_time_ms,
-        duration_ms          = duration_ms,
-        progress_percentage  = progress_percentage,
-        next_due_in_ms       = next_due_in_ms,
-        last_error           = self.last_error,
+        state               = self.state,
+        mode                = self.config and self.config.mode or nil,
+        playlist_count      = #self.playlists,
+        total_music_count   = self.total_music_count,
+        current_music_name  = self.current_music and self.current_music.name or nil,
+        current_music_path  = self.current_music and self.current_music.abs_path or nil,
+        current_time_ms     = current_time_ms,
+        duration_ms         = duration_ms,
+        progress_percentage = progress_percentage,
+        next_due_in_ms      = next_due_in_ms,
+        last_error          = self.last_error,
     })
 end
 

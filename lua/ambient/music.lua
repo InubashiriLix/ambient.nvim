@@ -77,7 +77,7 @@ function M:new(abs_path)
     local duration_ms = getDuration(abs_path) or 0
 
     local modify_time, create_time, change_time = 0, 0, 0
-    local stat = vim.uv.fs_stat(abs_path)
+    local stat                                  = vim.uv.fs_stat(abs_path)
     if stat then
         modify_time = stat.mtime and stat.mtime.sec or 0
         change_time = stat.ctime and stat.ctime.sec or 0
@@ -150,7 +150,7 @@ function M:new(abs_path)
         end,
 
         setCursorTime = function(self, time_ms)
-            self.cursor_time_ms  = time_ms
+            self.cursor_time_ms = time_ms
             if self.duration_ms <= 0 then
                 self.proc_percentage = 0
                 return

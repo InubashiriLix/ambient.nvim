@@ -3,11 +3,11 @@ local M = {}
 local config = require("ambient.config")
 
 local health = vim.health
-local start = health.start or health.report_start
-local ok = health.ok or health.report_ok
-local warn = health.warn or health.report_warn
-local error = health.error or health.report_error
-local info = health.info or health.report_info
+local start  = health.start or health.report_start
+local ok     = health.ok or health.report_ok
+local warn   = health.warn or health.report_warn
+local error  = health.error or health.report_error
+local info   = health.info or health.report_info
 
 local function checkExecutable(name, required)
     if vim.fn.executable(name) == 1 then

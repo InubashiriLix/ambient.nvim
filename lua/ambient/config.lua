@@ -10,17 +10,17 @@ M.Error = {
 
 ---@type AmbientConfig
 local default_config = {
-    enable            = true,
-    mode              = "interval_random",
-    music_dir         = "~/.config/nvim/ambient.music",
-    music_dirs        = nil,
-    playlists         = nil,
-    extensions        = { "mp3", "ogg", "flac", "wav", "m4a", "aac", "opus" },
-    recursive_depth   = 4,
-    volume            = nil,
+    enable             = true,
+    mode               = "interval_random",
+    music_dir          = "~/.config/nvim/ambient.music",
+    music_dirs         = nil,
+    playlists          = nil,
+    extensions         = { "mp3", "ogg", "flac", "wav", "m4a", "aac", "opus" },
+    recursive_depth    = 4,
+    volume             = nil,
     show_notifications = nil,
-    volumn_percentage = 50,
-    progress          = {
+    volumn_percentage  = 50,
+    progress           = {
         enabled            = false,
         width              = 42,
         update_interval_ms = 500,
@@ -130,7 +130,8 @@ local function normalize(config)
     end
 
     if config.show_notification.when_toggle_playing_state ~= nil then
-        config.show_notification.when_toogle_playing_state = config.show_notification.when_toggle_playing_state
+        config.show_notification.when_toogle_playing_state = config.show_notification
+        .when_toggle_playing_state
     end
 
     if config.progress.enable ~= nil then
@@ -142,7 +143,8 @@ local function normalize(config)
     local playlist_defaults = {
         ext             = config.extensions,
         recursive_depth = config.recursive_depth,
-        sort_field      = (config.mode == "interval_sequential" or config.mode == "without_interval_sequential") and "name"
+        sort_field      = (config.mode == "interval_sequential" or config.mode == "without_interval_sequential") and
+            "name"
             or "random",
         sort_direction  = "asc",
     }
@@ -153,7 +155,8 @@ local function normalize(config)
         for _, item in ipairs(config.playlists) do
             table.insert(playlists, {
                 abs_path        = normalizePath(item.abs_path or item.path or item.dir),
-                ext             = normalizeExtensions(item.ext or item.extensions or playlist_defaults.ext),
+                ext             = normalizeExtensions(item.ext or item.extensions or
+                playlist_defaults.ext),
                 recursive_depth = item.recursive_depth or playlist_defaults.recursive_depth,
                 sort_field      = item.sort_field or item.sort_by or playlist_defaults.sort_field,
                 sort_direction  = item.sort_direction or playlist_defaults.sort_direction,
@@ -304,42 +307,42 @@ local function validate(config)
     })
 
     vim.validate({
-        mode              = {
+        mode                        = {
             config.mode,
             function(mode)
                 return valid_modes[mode] == true
             end,
             "Invalid mode. Must be one of 'interval_random', 'interval_sequential', 'without_interval_random', 'without_interval_sequential', 'intermittently', 'continuous'",
         },
-        min_ms            = {
+        min_ms                      = {
             config.interval.min_ms,
             function(value)
                 return value > 0
             end,
             "interval.min_ms must be greater than 0",
         },
-        max_ms            = {
+        max_ms                      = {
             config.interval.max_ms,
             function(value)
                 return value > 0 and value >= config.interval.min_ms
             end,
             "interval.max_ms must be greater than 0 and no smaller than interval.min_ms",
         },
-        volumn_percentage = {
+        volumn_percentage           = {
             config.volumn_percentage,
             function(value)
                 return value >= 0 and value <= 100
             end,
             "volumn_percentage must be between 0 and 100",
         },
-        recursive_depth   = {
+        recursive_depth             = {
             config.recursive_depth,
             function(value)
                 return value > 0
             end,
             "recursive_depth must be greater than 0",
         },
-        progress_width    = {
+        progress_width              = {
             config.progress.width,
             function(value)
                 return value >= 24 and value <= 80

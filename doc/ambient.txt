@@ -56,11 +56,11 @@ Minimal setup:
   })
 <
 
-lazy.nvim local development example:
+lazy.nvim example:
 >
   return {
     {
-      dir = "/path/to/ambient.nvim",
+      "InubashiriLix/ambient.nvim",
       name = "ambient.nvim",
       main = "ambient",
       event = "VeryLazy",
