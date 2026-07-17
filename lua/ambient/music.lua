@@ -38,7 +38,7 @@ local function getDuration(abs_path)
         return nil
     end
 
-    local output = vim.fn.systemlist({
+    local cmd = {
         "ffprobe",
         "-v",
         "error",
@@ -47,7 +47,29 @@ local function getDuration(abs_path)
         "-of",
         "default=noprint_wrappers=1:nokey=1",
         abs_path,
-    })
+    }
+
+    if vim.system ~= nil then
+        local ok, completed = pcall(function()
+            return vim.system(cmd, { text = true }):wait()
+        end)
+        if not ok or completed.code ~= 0 or completed.stdout == nil then
+            return nil
+        end
+
+        local seconds = tonumber(vim.split(completed.stdout, "\n", { trimempty = true })[1])
+        if not seconds then
+            return nil
+        end
+
+        return math.floor(seconds * 1000)
+    end
+
+    local ok, output = pcall(vim.fn.systemlist, cmd)
+
+    if not ok then
+        return nil
+    end
 
     if vim.v.shell_error ~= 0 or #output == 0 then
         return nil

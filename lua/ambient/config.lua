@@ -1,6 +1,7 @@
 local M = {}
 
-local result = require("ambient.result")
+local result          = require("ambient.result")
+local progress_styles = require("ambient.progress_styles")
 
 ---@enum AmbientConfigError
 M.Error = {
@@ -21,30 +22,45 @@ local default_config = {
     show_notifications = nil,
     volumn_percentage  = 50,
     progress           = {
-        enabled            = true,
-        width              = 42,
-        name_width         = 18,
-        bar_width          = 10,
-        show_time          = true,
-        scroll             = false,
-        scroll_separator   = " ",
-        update_interval_ms = 500,
-        border             = {
-            enabled = false,
-            left    = "",
-            right   = "",
-            padding = " ",
+        enabled   = true,
+        layout    = {
+            width = 42,
         },
-        lualine_separator  = {
-            left  = "",
-            right = "",
+        track     = {
+            width            = 18,
+            scroll           = false,
+            scroll_separator = " ",
         },
-        color              = {
-            fg  = "#7CA0F1",
-            bg  = "#1e2032",
-            gui = "bold",
+        bar       = {
+            style  = progress_styles.default,
+            width  = 10,
+            filled = "⠶",
+            empty  = "⠄",
+            left   = "",
+            right  = "",
         },
-        colors             = {},
+        time      = {
+            enabled = true,
+        },
+        refresh   = {
+            interval_ms = 500,
+        },
+        component = {
+            frame = {
+                enabled = false,
+                left    = "",
+                right   = "",
+                padding = " ",
+            },
+        },
+        highlight = {
+            default = {
+                fg  = "#7CA0F1",
+                bg  = "#1e2032",
+                gui = "bold",
+            },
+            states  = {},
+        },
     },
 
     interval = {
@@ -82,6 +98,27 @@ local valid_sort_fields = {
 local valid_sort_directions = {
     asc  = true,
     desc = true,
+}
+
+local deprecated_progress_fields = {
+    { "enable",             "enabled" },
+    { "style",              "bar.style" },
+    { "width",              "layout.width" },
+    { "name_width",         "track.width" },
+    { "bar_width",          "bar.width" },
+    { "show_time",          "time.enabled" },
+    { "scroll",             "track.scroll" },
+    { "scroll_separator",   "track.scroll_separator" },
+    { "update_interval_ms", "refresh.interval_ms" },
+    { "border",             "component.frame" },
+    { "lualine_separator",  "component.separator" },
+    { "color",              "highlight.default" },
+    { "colors",             "highlight.states" },
+}
+
+local deprecated_progress_component_fields = {
+    { "border",            "frame" },
+    { "lualine_separator", "separator" },
 }
 
 ---@class AmbientConfigState
@@ -133,6 +170,119 @@ local function isStringArray(value)
     return true
 end
 
+---@param value any
+---@return boolean
+local function isUsablePathString(value)
+    return type(value) == "string"
+        and value:match("%S") ~= nil
+        and value:match("<[^>]+>") == nil
+end
+
+---@param value any
+---@return boolean
+local function isPathArray(value)
+    if type(value) ~= "table" then
+        return false
+    end
+
+    for _, item in ipairs(value) do
+        if not isUsablePathString(item) then
+            return false
+        end
+    end
+
+    return true
+end
+
+---@param value any
+---@return boolean
+local function isSingleCellString(value)
+    return type(value) == "string" and vim.fn.strdisplaywidth(value) == 1
+end
+
+---@param value any
+---@return boolean
+local function isLualinePadding(value)
+    if value == nil then
+        return true
+    end
+
+    if type(value) == "number" then
+        return value >= 0
+    end
+
+    if type(value) ~= "table" then
+        return false
+    end
+
+    local left  = value.left
+    local right = value.right
+    return (left == nil or (type(left) == "number" and left >= 0))
+        and (right == nil or (type(right) == "number" and right >= 0))
+end
+
+---@param item table
+---@return any
+local function getPlaylistPath(item)
+    return item.abs_path or item.path or item.dir
+end
+
+---@param progress table
+local function rejectDeprecatedProgressFields(progress)
+    for _, item in ipairs(deprecated_progress_fields) do
+        local old_key = item[1]
+        local new_key = item[2]
+        if progress[old_key] ~= nil then
+            error(
+                string.format(
+                    "progress.%s is no longer supported; use progress.%s",
+                    old_key,
+                    new_key
+                ),
+                0
+            )
+        end
+    end
+
+    if type(progress.component) ~= "table" then
+        return
+    end
+
+    for _, item in ipairs(deprecated_progress_component_fields) do
+        local old_key = item[1]
+        local new_key = item[2]
+        if progress.component[old_key] ~= nil then
+            error(
+                string.format(
+                    "progress.component.%s is no longer supported; use progress.component.%s",
+                    old_key,
+                    new_key
+                ),
+                0
+            )
+        end
+    end
+end
+
+---@param progress table
+local function normalizeProgress(progress)
+    rejectDeprecatedProgressFields(progress)
+
+    progress.layout          = progress.layout or {}
+    progress.track           = progress.track or {}
+    progress.bar             = progress.bar or {}
+    progress.time            = progress.time or {}
+    progress.refresh         = progress.refresh or {}
+    progress.component       = progress.component or {}
+    progress.component.frame = progress.component.frame or {}
+    progress.highlight       = progress.highlight or {}
+
+    local progress_style = progress_styles.canonical(progress.bar.style)
+    if progress_style ~= nil then
+        progress.bar.style = progress_style
+    end
+end
+
 ---@param config AmbientConfig
 local function normalize(config)
     if config.volume ~= nil then
@@ -150,9 +300,7 @@ local function normalize(config)
             .when_toggle_playing_state
     end
 
-    if config.progress.enable ~= nil then
-        config.progress.enabled = config.progress.enable
-    end
+    normalizeProgress(config.progress)
 
     config.extensions = normalizeExtensions(config.extensions)
 
@@ -170,7 +318,7 @@ local function normalize(config)
     if type(config.playlists) == "table" then
         for _, item in ipairs(config.playlists) do
             table.insert(playlists, {
-                abs_path        = normalizePath(item.abs_path or item.path or item.dir),
+                abs_path        = normalizePath(getPlaylistPath(item)),
                 ext             = normalizeExtensions(item.ext or item.extensions or
                     playlist_defaults.ext),
                 recursive_depth = item.recursive_depth or playlist_defaults.recursive_depth,
@@ -203,7 +351,11 @@ local function validate(config)
     vim.validate({
         enable            = { config.enable, "boolean", "enable must be a boolean" },
         mode              = { config.mode, "string", "mode must be a string" },
-        music_dir         = { config.music_dir, "string", "music_dir must be a string" },
+        music_dir         = {
+            config.music_dir,
+            isUsablePathString,
+            "music_dir must be a non-empty path, not an angle-bracket placeholder",
+        },
         recursive_depth   = {
             config.recursive_depth,
             "number",
@@ -235,8 +387,8 @@ local function validate(config)
         vim.validate({
             music_dirs = {
                 config.music_dirs,
-                isStringArray,
-                "music_dirs must be a list of strings",
+                isPathArray,
+                "music_dirs must be a list of non-empty paths, not angle-bracket placeholders",
             },
         })
     end
@@ -257,148 +409,223 @@ local function validate(config)
     })
 
     vim.validate({
-        progress_enabled                 = {
+        progress_enabled                = {
             config.progress.enabled,
             "boolean",
             "progress.enabled must be a boolean",
         },
-        progress_width                   = {
-            config.progress.width,
-            "number",
-            "progress.width must be a number",
+        progress_layout                 = {
+            config.progress.layout,
+            "table",
+            "progress.layout must be a table",
         },
-        progress_name_width              = {
-            config.progress.name_width,
+        progress_layout_width           = {
+            config.progress.layout.width,
             "number",
-            "progress.name_width must be a number",
+            "progress.layout.width must be a number",
         },
-        progress_bar_width               = {
-            config.progress.bar_width,
+        progress_track                  = {
+            config.progress.track,
+            "table",
+            "progress.track must be a table",
+        },
+        progress_track_width            = {
+            config.progress.track.width,
             "number",
-            "progress.bar_width must be a number",
+            "progress.track.width must be a number",
         },
-        progress_show_time               = {
-            config.progress.show_time,
+        progress_track_scroll           = {
+            config.progress.track.scroll,
             "boolean",
-            "progress.show_time must be a boolean",
+            "progress.track.scroll must be a boolean",
         },
-        progress_scroll                  = {
-            config.progress.scroll,
-            "boolean",
-            "progress.scroll must be a boolean",
-        },
-        progress_scroll_separator        = {
-            config.progress.scroll_separator,
+        progress_track_scroll_separator = {
+            config.progress.track.scroll_separator,
             "string",
-            "progress.scroll_separator must be a string",
+            "progress.track.scroll_separator must be a string",
         },
-        progress_update_interval_ms      = {
-            config.progress.update_interval_ms,
+        progress_bar                    = {
+            config.progress.bar,
+            "table",
+            "progress.bar must be a table",
+        },
+        progress_bar_style              = {
+            config.progress.bar.style,
+            progress_styles.is_valid,
+            "progress.bar.style must be one of: " .. progress_styles.describe(),
+        },
+        progress_bar_body_width         = {
+            config.progress.bar.width,
             "number",
-            "progress.update_interval_ms must be a number",
+            "progress.bar.width must be a number",
         },
-        progress_border                  = {
-            config.progress.border,
+        progress_bar_filled             = {
+            config.progress.bar.filled,
+            isSingleCellString,
+            "progress.bar.filled must be a single-cell string",
+        },
+        progress_bar_empty              = {
+            config.progress.bar.empty,
+            isSingleCellString,
+            "progress.bar.empty must be a single-cell string",
+        },
+        progress_bar_left               = {
+            config.progress.bar.left,
+            "string",
+            "progress.bar.left must be a string",
+        },
+        progress_bar_right              = {
+            config.progress.bar.right,
+            "string",
+            "progress.bar.right must be a string",
+        },
+        progress_time                   = {
+            config.progress.time,
             "table",
-            "progress.border must be a table",
+            "progress.time must be a table",
         },
-        progress_border_enabled          = {
-            config.progress.border.enabled,
+        progress_time_enabled           = {
+            config.progress.time.enabled,
             "boolean",
-            "progress.border.enabled must be a boolean",
+            "progress.time.enabled must be a boolean",
         },
-        progress_border_left             = {
-            config.progress.border.left,
-            "string",
-            "progress.border.left must be a string",
-        },
-        progress_border_right            = {
-            config.progress.border.right,
-            "string",
-            "progress.border.right must be a string",
-        },
-        progress_border_padding          = {
-            config.progress.border.padding,
-            "string",
-            "progress.border.padding must be a string",
-        },
-        progress_lualine_separator       = {
-            config.progress.lualine_separator,
+        progress_refresh                = {
+            config.progress.refresh,
             "table",
-            "progress.lualine_separator must be a table",
+            "progress.refresh must be a table",
         },
-        progress_lualine_separator_left  = {
-            config.progress.lualine_separator.left,
-            "string",
-            "progress.lualine_separator.left must be a string",
+        progress_refresh_interval_ms    = {
+            config.progress.refresh.interval_ms,
+            "number",
+            "progress.refresh.interval_ms must be a number",
         },
-        progress_lualine_separator_right = {
-            config.progress.lualine_separator.right,
-            "string",
-            "progress.lualine_separator.right must be a string",
-        },
-        progress_color                   = {
-            config.progress.color,
+        progress_component              = {
+            config.progress.component,
             "table",
-            "progress.color must be a table",
+            "progress.component must be a table",
         },
-        progress_color_fg                = {
-            config.progress.color.fg,
-            "string",
-            "progress.color.fg must be a string",
-        },
-        progress_color_bg                = {
-            config.progress.color.bg,
-            "string",
-            "progress.color.bg must be a string",
-        },
-        progress_color_gui               = {
-            config.progress.color.gui,
-            "string",
-            "progress.color.gui must be a string",
-        },
-        progress_colors                  = {
-            config.progress.colors,
+        progress_frame                  = {
+            config.progress.component.frame,
             "table",
-            "progress.colors must be a table",
+            "progress.component.frame must be a table",
+        },
+        progress_frame_enabled          = {
+            config.progress.component.frame.enabled,
+            "boolean",
+            "progress.component.frame.enabled must be a boolean",
+        },
+        progress_frame_left             = {
+            config.progress.component.frame.left,
+            "string",
+            "progress.component.frame.left must be a string",
+        },
+        progress_frame_right            = {
+            config.progress.component.frame.right,
+            "string",
+            "progress.component.frame.right must be a string",
+        },
+        progress_frame_padding          = {
+            config.progress.component.frame.padding,
+            "string",
+            "progress.component.frame.padding must be a string",
+        },
+        progress_highlight              = {
+            config.progress.highlight,
+            "table",
+            "progress.highlight must be a table",
+        },
+        progress_highlight_default      = {
+            config.progress.highlight.default,
+            "table",
+            "progress.highlight.default must be a table",
+        },
+        progress_color_fg               = {
+            config.progress.highlight.default.fg,
+            "string",
+            "progress.highlight.default.fg must be a string",
+        },
+        progress_color_bg               = {
+            config.progress.highlight.default.bg,
+            "string",
+            "progress.highlight.default.bg must be a string",
+        },
+        progress_color_gui              = {
+            config.progress.highlight.default.gui,
+            "string",
+            "progress.highlight.default.gui must be a string",
+        },
+        progress_colors                 = {
+            config.progress.highlight.states,
+            "table",
+            "progress.highlight.states must be a table",
         },
     })
 
-    for name, value in pairs(config.progress.colors) do
+    if config.progress.component.separator ~= nil then
         vim.validate({
-            ["progress.colors." .. name] = {
+            progress_component_separator       = {
+                config.progress.component.separator,
+                "table",
+                "progress.component.separator must be a table",
+            },
+            progress_component_separator_left  = {
+                config.progress.component.separator.left,
+                "string",
+                "progress.component.separator.left must be a string",
+            },
+            progress_component_separator_right = {
+                config.progress.component.separator.right,
+                "string",
+                "progress.component.separator.right must be a string",
+            },
+        })
+    end
+
+    if config.progress.component.padding ~= nil then
+        vim.validate({
+            progress_component_padding = {
+                config.progress.component.padding,
+                isLualinePadding,
+                "progress.component.padding must be a non-negative number or a table with non-negative left/right numbers",
+            },
+        })
+    end
+
+    for name, value in pairs(config.progress.highlight.states) do
+        vim.validate({
+            ["progress.highlight.states." .. name] = {
                 value,
                 "table",
-                "progress.colors." .. name .. " must be a table",
+                "progress.highlight.states." .. name .. " must be a table",
             },
         })
 
         if value.fg ~= nil then
             vim.validate({
-                ["progress.colors." .. name .. ".fg"] = {
+                ["progress.highlight.states." .. name .. ".fg"] = {
                     value.fg,
                     "string",
-                    "progress.colors." .. name .. ".fg must be a string",
+                    "progress.highlight.states." .. name .. ".fg must be a string",
                 },
             })
         end
 
         if value.bg ~= nil then
             vim.validate({
-                ["progress.colors." .. name .. ".bg"] = {
+                ["progress.highlight.states." .. name .. ".bg"] = {
                     value.bg,
                     "string",
-                    "progress.colors." .. name .. ".bg must be a string",
+                    "progress.highlight.states." .. name .. ".bg must be a string",
                 },
             })
         end
 
         if value.gui ~= nil then
             vim.validate({
-                ["progress.colors." .. name .. ".gui"] = {
+                ["progress.highlight.states." .. name .. ".gui"] = {
                     value.gui,
                     "string",
-                    "progress.colors." .. name .. ".gui must be a string",
+                    "progress.highlight.states." .. name .. ".gui must be a string",
                 },
             })
         end
@@ -433,97 +660,97 @@ local function validate(config)
     })
 
     vim.validate({
-        mode                        = {
+        mode                      = {
             config.mode,
             function(mode)
                 return valid_modes[mode] == true
             end,
             "Invalid mode. Must be one of 'interval_random', 'interval_sequential', 'without_interval_random', 'without_interval_sequential', 'intermittently', 'continuous'",
         },
-        min_ms                      = {
+        min_ms                    = {
             config.interval.min_ms,
             function(value)
                 return value > 0
             end,
             "interval.min_ms must be greater than 0",
         },
-        max_ms                      = {
+        max_ms                    = {
             config.interval.max_ms,
             function(value)
                 return value > 0 and value >= config.interval.min_ms
             end,
             "interval.max_ms must be greater than 0 and no smaller than interval.min_ms",
         },
-        volumn_percentage           = {
+        volumn_percentage         = {
             config.volumn_percentage,
             function(value)
                 return value >= 0 and value <= 100
             end,
             "volumn_percentage must be between 0 and 100",
         },
-        recursive_depth             = {
+        recursive_depth           = {
             config.recursive_depth,
             function(value)
                 return value > 0
             end,
             "recursive_depth must be greater than 0",
         },
-        progress_width              = {
-            config.progress.width,
+        progress_width            = {
+            config.progress.layout.width,
             function(value)
                 return value >= 24 and value <= 80
             end,
-            "progress.width must be between 24 and 80",
+            "progress.layout.width must be between 24 and 80",
         },
-        progress_name_width         = {
-            config.progress.name_width,
+        progress_track_width      = {
+            config.progress.track.width,
             function(value)
                 return value >= 8 and value <= 60
             end,
-            "progress.name_width must be between 8 and 60",
+            "progress.track.width must be between 8 and 60",
         },
-        progress_bar_width          = {
-            config.progress.bar_width,
+        progress_bar_body_width   = {
+            config.progress.bar.width,
             function(value)
                 return value >= 4 and value <= 40
             end,
-            "progress.bar_width must be between 4 and 40",
+            "progress.bar.width must be between 4 and 40",
         },
-        progress_update_interval_ms = {
-            config.progress.update_interval_ms,
+        progress_refresh_interval = {
+            config.progress.refresh.interval_ms,
             function(value)
                 return value >= 100
             end,
-            "progress.update_interval_ms must be at least 100",
+            "progress.refresh.interval_ms must be at least 100",
         },
     })
 
     if type(config.playlists) == "table" then
         for _, item in ipairs(config.playlists) do
             vim.validate({
-                playlist_abs_path = {
-                    item.abs_path,
-                    "string",
-                    "playlist.abs_path must be a string",
+                playlist_path   = {
+                    getPlaylistPath(item),
+                    isUsablePathString,
+                    "playlist path must be a non-empty path, not an angle-bracket placeholder",
                 },
-                playlist_ext      = {
+                playlist_ext    = {
                     item.ext,
                     isStringArray,
                     "playlist.ext must be a list of strings",
                 },
-                recursive_depth   = {
+                recursive_depth = {
                     item.recursive_depth,
                     "number",
                     "playlist.recursive_depth must be a number",
                 },
-                sort_field        = {
+                sort_field      = {
                     item.sort_field,
                     function(value)
                         return valid_sort_fields[value] == true
                     end,
                     "playlist.sort_field is invalid",
                 },
-                sort_direction    = {
+                sort_direction  = {
                     item.sort_direction,
                     function(value)
                         return valid_sort_directions[value] == true
@@ -539,7 +766,17 @@ end
 ---@return AmbientResult<AmbientConfig, AmbientConfigError>
 function M.setup(opts)
     local ok, err = pcall(function()
-        local merged = vim.tbl_deep_extend("force", vim.deepcopy(default_config), opts or {})
+        local raw_opts        = opts or {}
+        local base            = vim.deepcopy(default_config)
+        local requested_style = base.progress.bar.style
+        if type(raw_opts.progress) == "table" then
+            if type(raw_opts.progress.bar) == "table" and raw_opts.progress.bar.style ~= nil then
+                requested_style = raw_opts.progress.bar.style
+            end
+        end
+        base.progress = progress_styles.apply(base.progress, requested_style)
+
+        local merged = vim.tbl_deep_extend("force", base, raw_opts)
         validate(merged)
         normalize(merged)
         validate(merged)

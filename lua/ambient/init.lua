@@ -1,5 +1,7 @@
 local M = {}
 
+require("ambient.typedef")
+
 local result   = require("ambient.result")
 local config   = require("ambient.config")
 local progress = require("ambient.progress")

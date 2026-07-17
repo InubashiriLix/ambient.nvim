@@ -56,8 +56,39 @@ Minimal setup:
   })
 <
 
+Use real directory paths in `music_dirs`. Do not keep angle-bracket placeholder
+text in your config because Neovim treats it as a special filename expansion
+pattern.
+
 lazy.nvim example:
 >
+  ---@type AmbientProgressConfig
+  local progress = {
+    enabled = true,
+    layout = {
+      width = 42,
+    },
+    track = {
+      width = 18,
+      scroll = false,
+      scroll_separator = "  ",
+    },
+    bar = {
+      style = "braille",
+      width = 10,
+    },
+  }
+
+  ---@type AmbientConfig
+  local opts = {
+    music_dirs = {
+      "~/Music/ambient",
+    },
+    mode = "interval_random",
+    volume = 20,
+    progress = progress,
+  }
+
   return {
     {
       "InubashiriLix/ambient.nvim",
@@ -72,13 +103,7 @@ lazy.nvim example:
         "AmbientStatus",
         "AmbientProgressToggle",
       },
-      opts = {
-        music_dirs = {
-          "~/Music/ambient",
-        },
-        mode = "interval_random",
-        volume = 20,
-      },
+      opts = opts,
       config = function(_, opts)
         require("ambient").setup(opts)
       end,
@@ -199,33 +224,46 @@ Example:
   require("ambient").setup({
     progress = {
       enabled = true,
-      width = 42,
-      name_width = 18,
-      bar_width = 10,
-      show_time = true,
-      scroll = false,
-      scroll_separator = "  ",
-      update_interval_ms = 500,
-      border = {
+      layout = {
+        width = 42,
+      },
+      track = {
+        width = 18,
+        scroll = false,
+        scroll_separator = "  ",
+      },
+      bar = {
+        style = "braille",
+        width = 10,
+      },
+      time = {
         enabled = true,
-        left = "",
-        right = "",
-        padding = " ",
       },
-      lualine_separator = {
-        left = "",
-        right = "",
+      refresh = {
+        interval_ms = 500,
       },
-      color = {
-        fg = "#ffffff",
-        bg = "#5b7ee5",
-        gui = "bold",
+      component = {
+        frame = {
+          enabled = false,
+          left = "",
+          right = "",
+          padding = " ",
+        },
+        -- separator = { left = "", right = "" },
+        -- padding = { left = 0, right = 0 },
       },
-      colors = {
-        playing = { bg = "#5b7ee5" },
-        interval = { bg = "#7c6f64" },
-        stopped = { bg = "#6c7086" },
-        error = { bg = "#f38ba8" },
+      highlight = {
+        default = {
+          fg = "#ffffff",
+          bg = "#5b7ee5",
+          gui = "bold",
+        },
+        states = {
+          playing = { bg = "#5b7ee5" },
+          interval = { bg = "#7c6f64" },
+          stopped = { bg = "#6c7086" },
+          error = { bg = "#f38ba8" },
+        },
       },
     },
   })
@@ -235,6 +273,44 @@ Toggle it with:
 >
   :AmbientProgressToggle
 <
+
+Built-in styles:
+>
+  braille     sparse, borderless
+  block       dense block progress
+  line        thin line progress
+  dots        dot progress
+  squares     square progress
+  diamonds    diamond progress
+  pipes       vertical bar progress
+  ascii       ASCII bracketed progress
+  brackets    classic bracketed block progress
+  angle       angle-wrapped line progress
+  powerline   progress-bar wrapper using 
+  separators  progress-bar wrapper using 
+  rounded     progress-bar wrapper using  and 
+  slanted     progress-bar wrapper using  and 
+<
+
+Aliases include:
+>
+  default, sparse -> braille
+  blocks, dense -> block
+  classic, old, bracket -> brackets
+  separator, segment -> separators
+  bubble, round -> rounded
+<
+
+Styles only change the progress bar characters and the progress bar's own
+wrapper. `progress.component.frame` remains an explicit text-frame setting.
+
+To match the rest of lualine, leave `progress.component.separator` and
+`progress.component.padding` unset. Set them only when ambient should override
+lualine's global component separators or padding.
+
+`progress.component.separator` uses lualine's transition separator mechanism.
+It may be invisible when both sides have the same background. For a separator
+that should always be visible, use `progress.component.frame.left/right`.
 
 If you do not use lualine, call `require("ambient").statusline()` from your own
 statusline.
@@ -258,34 +334,51 @@ Default-shaped configuration:
       max_ms = 5 * 60 * 1000,
     },
     progress = {
-      enabled = false,
-      width = 42,
-      name_width = 18,
-      bar_width = 10,
-      show_time = true,
-      scroll = false,
-      scroll_separator = "  ",
-      update_interval_ms = 500,
-      border = {
-        enabled = true,
-        left = "",
-        right = "",
-        padding = " ",
+      enabled = true,
+      layout = {
+        width = 42,
       },
-      lualine_separator = {
+      track = {
+        width = 18,
+        scroll = false,
+        scroll_separator = "  ",
+      },
+      bar = {
+        style = "braille",
+        width = 10,
+        filled = "⠶",
+        empty = "⠄",
         left = "",
         right = "",
       },
-      color = {
-        fg = "#ffffff",
-        bg = "#5b7ee5",
-        gui = "bold",
+      time = {
+        enabled = true,
       },
-      colors = {
-        playing = { bg = "#5b7ee5" },
-        interval = { bg = "#7c6f64" },
-        stopped = { bg = "#6c7086" },
-        error = { bg = "#f38ba8" },
+      refresh = {
+        interval_ms = 500,
+      },
+      component = {
+        frame = {
+          enabled = false,
+          left = "",
+          right = "",
+          padding = " ",
+        },
+        -- separator = { left = "", right = "" },
+        -- padding = { left = 0, right = 0 },
+      },
+      highlight = {
+        default = {
+          fg = "#ffffff",
+          bg = "#5b7ee5",
+          gui = "bold",
+        },
+        states = {
+          playing = { bg = "#5b7ee5" },
+          interval = { bg = "#7c6f64" },
+          stopped = { bg = "#6c7086" },
+          error = { bg = "#f38ba8" },
+        },
       },
     },
     show_notifications = true,
@@ -331,39 +424,63 @@ interval.min_ms, interval.max_ms
 progress.enabled
     Whether the statusline progress component starts visible.
 
-progress.width
-    Fixed display width for the whole statusline component.
+progress.layout.width
+    Fixed display width for ambient's statusline text. lualine separators and
+    padding are outside this width.
 
-progress.name_width
+progress.track.width
     Maximum displayed width for the current track name.
 
-progress.bar_width
-    Width of the text progress bar.
-
-progress.show_time
-    Whether to show elapsed and total time, for example 0:01/0:12.
-
-progress.scroll
+progress.track.scroll
     Whether long track names scroll instead of being truncated.
 
-progress.scroll_separator
+progress.track.scroll_separator
     Text inserted between repeated track names while scrolling.
 
-progress.update_interval_ms
+progress.bar.style
+    Built-in visual preset. Supported styles are: braille, block, line, dots,
+    squares, diamonds, pipes, ascii, brackets, angle, powerline, separators,
+    rounded, and slanted. Aliases include default, sparse, blocks, dense,
+    classic, old, bracket, separator, segment, bubble, and round.
+
+progress.bar.width
+    Width of the text progress bar.
+
+progress.bar
+    Characters used to render the fixed-width progress bar. `filled` and
+    `empty` must each occupy exactly one display cell. `left` and `right`
+    wrap only the progress bar, not the whole statusline component.
+
+progress.time.enabled
+    Whether to show elapsed and total time, for example 0:01/0:12.
+
+progress.refresh.interval_ms
     Statusline refresh interval.
 
-progress.border
-    Border text rendered inside the fixed-width component. The total
-    progress.width includes border.left, border.right, and padding.
+progress.component.frame.enabled
+    Whether to render the text frame inside the fixed-width component.
 
-progress.lualine_separator
-    lualine component separator table. Use this when you want lualine to draw
-    separators outside progress.width.
+progress.component.frame.left, progress.component.frame.right
+    Left and right text frame strings. The total progress.layout.width includes
+    these strings.
 
-progress.color
+progress.component.frame.padding
+    Text inserted between the frame and the content.
+
+progress.component.separator
+    lualine component separator override. Omit this option to inherit lualine's
+    global component separators. Set `left` and `right` when ambient should use
+    a different separator.
+
+progress.component.padding
+    lualine component padding override. Omit this option to inherit lualine's
+    default padding. Set a number or `{ left = N, right = N }` for an
+    ambient-specific override.
+
+progress.highlight.default
     Default lualine color table. Supports `fg`, `bg`, and `gui`.
 
-progress.colors
+progress.highlight.states
     Per-state lualine color overrides. Supported keys include default, ready,
     playing, interval, stopped, paused, next, and error.
 

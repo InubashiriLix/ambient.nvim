@@ -1,35 +1,51 @@
 local M = {}
 
-local result   = require("ambient.result")
-local schedule = require("ambient.schedule")
+local result          = require("ambient.result")
+local schedule        = require("ambient.schedule")
+local progress_styles = require("ambient.progress_styles")
 
 local uv = vim.uv or vim.loop
 
 local default_config = {
-    enabled            = false,
-    width              = 42,
-    name_width         = 18,
-    bar_width          = 10,
-    show_time          = true,
-    scroll             = false,
-    scroll_separator   = "  ",
-    update_interval_ms = 500,
-    border             = {
-        enabled = false,
-        left    = "",
-        right   = "",
-        padding = " ",
+    enabled   = false,
+    layout    = {
+        width = 42,
     },
-    lualine_separator  = {
-        left  = "",
-        right = "",
+    track     = {
+        width            = 18,
+        scroll           = false,
+        scroll_separator = "  ",
     },
-    color              = {
-        fg  = "#ffffff",
-        bg  = "#5b7ee5",
-        gui = "bold",
+    bar       = {
+        style  = progress_styles.default,
+        width  = 10,
+        filled = "⠶",
+        empty  = "⠄",
+        left   = "",
+        right  = "",
     },
-    colors             = {},
+    time      = {
+        enabled = true,
+    },
+    refresh   = {
+        interval_ms = 500,
+    },
+    component = {
+        frame = {
+            enabled = false,
+            left    = "",
+            right   = "",
+            padding = " ",
+        },
+    },
+    highlight = {
+        default = {
+            fg  = "#ffffff",
+            bg  = "#5b7ee5",
+            gui = "bold",
+        },
+        states  = {},
+    },
 }
 
 M.config                     = vim.deepcopy(default_config)
@@ -61,27 +77,27 @@ end
 
 ---@return integer
 local function statusWidth()
-    return M.config.width or default_config.width
+    return M.config.layout.width or default_config.layout.width
 end
 
 ---@return string, string
-local function borderParts()
-    local border = M.config.border or default_config.border
-    if not border.enabled then
+local function frameParts()
+    local frame = M.config.component.frame or default_config.component.frame
+    if not frame.enabled then
         return "", ""
     end
 
-    local padding = border.padding or " "
-    local left = border.left or ""
-    local right = border.right or ""
-    local left_part = left ~= "" and left .. padding or ""
+    local padding    = frame.padding or " "
+    local left       = frame.left or ""
+    local right      = frame.right or ""
+    local left_part  = left ~= "" and left .. padding or ""
     local right_part = right ~= "" and padding .. right or ""
     return left_part, right_part
 end
 
 ---@return integer
 local function contentWidth()
-    local left, right = borderParts()
+    local left, right = frameParts()
     return math.max(0, statusWidth() - vim.fn.strdisplaywidth(left) - vim.fn.strdisplaywidth(right))
 end
 
@@ -124,19 +140,19 @@ local function centerToWidth(value, width)
         return ""
     end
 
-    local text = trimToWidth(value, width)
+    local text    = trimToWidth(value, width)
     local padding = width - vim.fn.strdisplaywidth(text)
-    local left = math.floor(padding / 2)
-    local right = padding - left
+    local left    = math.floor(padding / 2)
+    local right   = padding - left
     return string.rep(" ", left) .. text .. string.rep(" ", right)
 end
 
 ---@param value string
 ---@return string
 local function frameContent(value)
-    local left, right = borderParts()
+    local left, right = frameParts()
     local inner_width = contentWidth()
-    local content = centerToWidth(value, inner_width)
+    local content     = centerToWidth(value, inner_width)
     return trimToWidth(left .. content .. right, statusWidth())
 end
 
@@ -149,14 +165,14 @@ local function scroll(value, width)
         return value
     end
 
-    local separator = M.config.scroll_separator or "  "
-    local source = value .. separator
-    local chars = vim.fn.strchars(source)
+    local separator = M.config.track.scroll_separator or "  "
+    local source    = value .. separator
+    local chars     = vim.fn.strchars(source)
     if chars == 0 then
         return ""
     end
 
-    local step = math.floor((uv.now() or 0) / M.config.update_interval_ms) % chars
+    local step    = math.floor((uv.now() or 0) / M.config.refresh.interval_ms) % chars
     local doubled = source .. source
     return trimToWidth(vim.fn.strcharpart(doubled, step, width + 2), width)
 end
@@ -169,7 +185,7 @@ local function renderName(value, width)
         return ""
     end
 
-    if M.config.scroll then
+    if M.config.track.scroll then
         return centerToWidth(scroll(value, width), width)
     end
 
@@ -178,33 +194,45 @@ end
 
 ---@return integer
 local function effectiveBarWidth()
-    local width = contentWidth()
-    local fixed_without_bar = 2 + 1 + 4
-    if M.config.show_time then
+    local width             = contentWidth()
+    local bar               = M.config.bar or default_config.bar
+    local bar_frame_width   = vim.fn.strdisplaywidth(bar.left or "")
+        + vim.fn.strdisplaywidth(bar.right or "")
+    local fixed_without_bar = bar_frame_width + 1 + 4
+    if M.config.time.enabled then
         fixed_without_bar = fixed_without_bar + 11 + 1
     end
 
     local max_bar_width = math.max(1, width - fixed_without_bar)
-    return clamp(M.config.bar_width or default_config.bar_width, 1, max_bar_width)
+    return clamp(M.config.bar.width or default_config.bar.width, 1, max_bar_width)
 end
 
 ---@param percentage integer?
 ---@return string
 local function renderBar(percentage)
-    percentage = clamp(percentage or 0, 0, 100)
-    local width = effectiveBarWidth()
+    percentage   = clamp(percentage or 0, 0, 100)
+    local width  = effectiveBarWidth()
     local filled = math.floor((percentage / 100) * width)
-    local empty = width - filled
-    return string.rep("█", filled) .. string.rep("░", empty)
+    local empty  = width - filled
+    local bar    = M.config.bar or default_config.bar
+    return string.rep(bar.filled or default_config.bar.filled, filled)
+        .. string.rep(bar.empty or default_config.bar.empty, empty)
+end
+
+---@param percentage integer?
+---@return string
+local function renderBarWithFrame(percentage)
+    local bar = M.config.bar or default_config.bar
+    return (bar.left or "") .. renderBar(percentage) .. (bar.right or "")
 end
 
 ---@param ms integer?
 ---@return string
 local function formatFixedTime(ms)
-    ms = ms or 0
+    ms                  = ms or 0
     local total_seconds = math.floor(ms / 1000)
-    local minutes = math.floor(total_seconds / 60)
-    local seconds = total_seconds % 60
+    local minutes       = math.floor(total_seconds / 60)
+    local seconds       = total_seconds % 60
     if minutes > 99 then
         minutes = 99
         seconds = 59
@@ -248,8 +276,8 @@ end
 
 ---@return table
 local function componentColor()
-    local base = vim.deepcopy(M.config.color or default_config.color)
-    local colors = M.config.colors or {}
+    local base     = vim.deepcopy(M.config.highlight.default or default_config.highlight.default)
+    local colors   = M.config.highlight.states or {}
     local override = colors[currentStateKey()] or colors.default
     if type(override) == "table" then
         return vim.tbl_deep_extend("force", base, override)
@@ -265,8 +293,8 @@ end
 ---@param component table
 ---@return boolean
 local function applyLualineComponentOptions(component)
-    local separator = M.config.lualine_separator or default_config.lualine_separator
-    local padding   = { left = 0, right = 0 }
+    local separator = M.config.component.separator
+    local padding   = M.config.component.padding
     local changed   = component.color ~= lualineColor
         or not vim.deep_equal(component.separator, separator)
         or not vim.deep_equal(component.padding, padding)
@@ -352,10 +380,11 @@ local function ensureRefreshAutocmd()
     end
 
     M.refresh_autocmd_registered = true
-    local group = vim.api.nvim_create_augroup("ambient_progress_refresh", { clear = true })
+    local group                  = vim.api.nvim_create_augroup("ambient_progress_refresh",
+        { clear = true })
     vim.api.nvim_create_autocmd("User", {
-        group = group,
-        pattern = "AmbientStateChanged",
+        group    = group,
+        pattern  = "AmbientStateChanged",
         callback = function()
             refreshStatus()
             vim.defer_fn(refreshStatus, 20)
@@ -369,7 +398,7 @@ local function startTimer()
     end
 
     M.timer = uv.new_timer()
-    M.timer:start(0, M.config.update_interval_ms, vim.schedule_wrap(refreshStatus))
+    M.timer:start(0, M.config.refresh.interval_ms, vim.schedule_wrap(refreshStatus))
     if M.timer.unref ~= nil then
         M.timer:unref()
     end
@@ -397,23 +426,26 @@ local function renderStatusline(status)
 
     if status.state == schedule.State.PLAYING then
         local percentage = status.progress_percentage or 0
-        local bar        = renderBar(percentage)
+        local bar        = renderBarWithFrame(percentage)
         local suffix
-        if M.config.show_time then
+        if M.config.time.enabled then
             suffix = string.format(
-                "%s [%s] %s",
+                "%s %s %s",
                 renderTime(status.current_time_ms, status.duration_ms),
                 bar,
                 renderPercentage(percentage)
             )
         else
-            suffix = string.format("[%s] %s", bar, renderPercentage(percentage))
+            suffix = string.format("%s %s", bar, renderPercentage(percentage))
         end
 
         local suffix_width = vim.fn.strdisplaywidth(suffix)
-        local name_width = math.min(M.config.name_width or default_config.name_width, math.max(0, width - suffix_width - 1))
-        local name = renderName(status.current_music_name or "ambient", name_width)
-        local content = suffix
+        local name_width   = math.min(
+            M.config.track.width or default_config.track.width,
+            math.max(0, width - suffix_width - 1)
+        )
+        local name         = renderName(status.current_music_name or "ambient", name_width)
+        local content      = suffix
         if name_width > 0 then
             content = name .. " " .. suffix
         end
@@ -439,8 +471,16 @@ end
 ---@param config AmbientConfig
 ---@return AmbientResult<nil, nil>
 function M:setup(config)
-    self.config  = vim.tbl_deep_extend("force", vim.deepcopy(default_config), config.progress or {})
-    self.visible = self.config.enabled == true
+    local opts  = config.progress or {}
+    local style = default_config.bar.style
+    if type(opts.bar) == "table" and opts.bar.style ~= nil then
+        style = opts.bar.style
+    end
+    local base            = progress_styles.apply(vim.deepcopy(default_config), style)
+    self.config           = vim.tbl_deep_extend("force", base, opts)
+    self.config.bar.style = progress_styles.canonical(self.config.bar.style)
+        or self.config.bar.style
+    self.visible          = self.config.enabled == true
     ensureLualineRegistration()
     ensureRefreshAutocmd()
 
