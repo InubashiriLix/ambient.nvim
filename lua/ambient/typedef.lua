@@ -11,7 +11,7 @@ local M = {}
 ---@field when_start_playing boolean
 ---@field when_toogle_playing_state boolean
 
----@alias ambient_play_mode "interval_random" | "interval_sequential" | "without_interval_random" | "without_interval_sequential" | "intermittently" | "continuous" | "continously"
+---@alias AmbientPlayMode "interval_random" | "interval_sequential" | "without_interval_random" | "without_interval_sequential" | "intermittently" | "continuous" | "continously"
 
 ---@class AmbientPlaylistConfig
 ---@field abs_path string
@@ -26,14 +26,22 @@ local M = {}
 ---@field update_interval_ms integer
 ---@field color AmbientProgressColorConfig
 
+---@alias AmbientProgressBarStyle
+---| "none"
+---| "bold"
+---| "italic"
+---| "underline"
+---| "undercurl"
+---| "strikethrough"
+
 ---@class AmbientProgressColorConfig
 ---@field fg string
 ---@field bg string
----@field gui string
+---@field gui AmbientProgressBarStyle
 
 ---@class AmbientConfig
 ---@field enable boolean
----@field mode ambient_play_mode
+---@field mode AmbientPlayMode
 ---@field music_dir string
 ---@field music_dirs? string[]
 ---@field playlists AmbientPlaylistConfig[]
