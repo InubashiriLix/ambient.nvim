@@ -23,8 +23,16 @@ local M = {}
 ---@class AmbientProgressConfig
 ---@field enabled boolean
 ---@field width integer
+---@field name_width integer
+---@field bar_width integer
+---@field show_time boolean
+---@field scroll boolean
+---@field scroll_separator string
 ---@field update_interval_ms integer
+---@field border AmbientProgressBorderConfig
+---@field lualine_separator AmbientProgressLualineSeparatorConfig
 ---@field color AmbientProgressColorConfig
+---@field colors AmbientProgressColorsConfig
 
 ---@alias AmbientProgressBarStyle
 ---| "none"
@@ -38,6 +46,26 @@ local M = {}
 ---@field fg string
 ---@field bg string
 ---@field gui AmbientProgressBarStyle
+
+---@class AmbientProgressColorsConfig
+---@field default? AmbientProgressColorConfig
+---@field ready? AmbientProgressColorConfig
+---@field playing? AmbientProgressColorConfig
+---@field interval? AmbientProgressColorConfig
+---@field stopped? AmbientProgressColorConfig
+---@field paused? AmbientProgressColorConfig
+---@field next? AmbientProgressColorConfig
+---@field error? AmbientProgressColorConfig
+
+---@class AmbientProgressBorderConfig
+---@field enabled boolean
+---@field left string
+---@field right string
+---@field padding string
+
+---@class AmbientProgressLualineSeparatorConfig
+---@field left string
+---@field right string
 
 ---@class AmbientConfig
 ---@field enable boolean

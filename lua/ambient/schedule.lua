@@ -72,6 +72,21 @@ M.random_seed_initialized = false
 local playNow
 local scheduleNext
 
+local function emitStateChanged()
+    vim.schedule(function()
+        pcall(vim.api.nvim_exec_autocmds, "User", {
+            pattern = "AmbientStateChanged",
+            modeline = false,
+        })
+    end)
+end
+
+---@param state ScheduleState
+local function setState(state)
+    M.state = state
+    emitStateChanged()
+end
+
 local function seedRandom()
     if M.random_seed_initialized then
         return
@@ -107,8 +122,8 @@ end
 ---@return AmbientErr<AmbientScheduleError>
 local function fail(err, message)
     closeAllTimers()
-    M.state      = M.State.ERROR
     M.last_error = message or err
+    setState(M.State.ERROR)
     return result.err(err)
 end
 
@@ -259,8 +274,8 @@ scheduleNext = function(delay_ms)
     end
 
     if delay_ms <= 0 then
-        M.state            = M.State.NEXT
         M.next_due_time_ms = nil
+        setState(M.State.NEXT)
         vim.schedule(function()
             if M.state ~= M.State.STOPPED then
                 playNow()
@@ -275,8 +290,8 @@ scheduleNext = function(delay_ms)
     end
 
     M.interval_timer   = timer
-    M.state            = M.State.INTERVAL
     M.next_due_time_ms = uv.now() + delay_ms
+    setState(M.State.INTERVAL)
 
     timer:start(delay_ms, 0, vim.schedule_wrap(function()
         closeTimer("interval_timer")
@@ -307,7 +322,7 @@ playNow = function()
     M.current_music    = music
     M.next_due_time_ms = nil
     M.last_error       = nil
-    M.state            = M.State.PLAYING
+    setState(M.State.PLAYING)
 
     return startEventTimer()
 end
@@ -352,7 +367,7 @@ function M:setup(config)
         return fail(self.Error.PLAYER_ERROR, player:get_error_message())
     end
 
-    self.state = self.State.READY
+    setState(self.State.READY)
     return result.ok(nil)
 end
 
@@ -371,7 +386,7 @@ function M:start()
         if not resumed.ok then
             return fail(self.Error.PLAYER_ERROR, player:get_error_message())
         end
-        self.state = self.State.PLAYING
+        setState(self.State.PLAYING)
         return startEventTimer()
     end
 
@@ -384,7 +399,7 @@ function M:stop()
     player:shutdown()
     self.current_music    = nil
     self.next_due_time_ms = nil
-    self.state            = self.State.STOPPED
+    setState(self.State.STOPPED)
     return result.ok(nil)
 end
 
@@ -399,7 +414,7 @@ function M:pause()
         return fail(self.Error.PLAYER_ERROR, player:get_error_message())
     end
 
-    self.state = self.State.PAUSED
+    setState(self.State.PAUSED)
     return result.ok(nil)
 end
 

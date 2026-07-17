@@ -96,6 +96,10 @@ local function reportResult(r, ok_message)
     notify("Ambient error: " .. tostring(r.err), vim.log.levels.ERROR)
 end
 
+local function refreshProgress()
+    progress:refresh()
+end
+
 function M.register_commands()
     if commands_registered then
         return
@@ -196,6 +200,7 @@ function M.start()
     end
 
     local started = schedule:start()
+    refreshProgress()
     if started.ok then
         local status = schedule:get()
         if status.ok and status.value.current_music_name ~= nil then
@@ -212,12 +217,16 @@ end
 
 ---@return AmbientResult<nil, any>
 function M.stop()
-    return schedule:stop()
+    local stopped = schedule:stop()
+    refreshProgress()
+    return stopped
 end
 
 ---@return AmbientResult<nil, any>
 function M.pause()
-    return schedule:pause()
+    local paused = schedule:pause()
+    refreshProgress()
+    return paused
 end
 
 ---@return AmbientResult<nil, any>
@@ -228,6 +237,7 @@ function M.toggle()
     end
 
     local toggled = schedule:toggle()
+    refreshProgress()
     if toggled.ok then
         local status = schedule:get()
         if status.ok then
@@ -244,7 +254,9 @@ function M.next()
         return result.err(ready.err)
     end
 
-    return schedule:next()
+    local nexted = schedule:next()
+    refreshProgress()
+    return nexted
 end
 
 ---@return AmbientResult<boolean, any>

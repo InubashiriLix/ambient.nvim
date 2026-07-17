@@ -21,14 +21,30 @@ local default_config = {
     show_notifications = nil,
     volumn_percentage  = 50,
     progress           = {
-        enabled            = false,
+        enabled            = true,
         width              = 42,
+        name_width         = 18,
+        bar_width          = 10,
+        show_time          = true,
+        scroll             = false,
+        scroll_separator   = " ",
         update_interval_ms = 500,
+        border             = {
+            enabled = false,
+            left    = "",
+            right   = "",
+            padding = " ",
+        },
+        lualine_separator  = {
+            left  = "",
+            right = "",
+        },
         color              = {
-            fg  = "#ffffff",
-            bg  = "#5b7ee5",
+            fg  = "#7CA0F1",
+            bg  = "#1e2032",
             gui = "bold",
         },
+        colors             = {},
     },
 
     interval = {
@@ -131,7 +147,7 @@ local function normalize(config)
 
     if config.show_notification.when_toggle_playing_state ~= nil then
         config.show_notification.when_toogle_playing_state = config.show_notification
-        .when_toggle_playing_state
+            .when_toggle_playing_state
     end
 
     if config.progress.enable ~= nil then
@@ -156,7 +172,7 @@ local function normalize(config)
             table.insert(playlists, {
                 abs_path        = normalizePath(item.abs_path or item.path or item.dir),
                 ext             = normalizeExtensions(item.ext or item.extensions or
-                playlist_defaults.ext),
+                    playlist_defaults.ext),
                 recursive_depth = item.recursive_depth or playlist_defaults.recursive_depth,
                 sort_field      = item.sort_field or item.sort_by or playlist_defaults.sort_field,
                 sort_direction  = item.sort_direction or playlist_defaults.sort_direction,
@@ -241,42 +257,152 @@ local function validate(config)
     })
 
     vim.validate({
-        progress_enabled            = {
+        progress_enabled                 = {
             config.progress.enabled,
             "boolean",
             "progress.enabled must be a boolean",
         },
-        progress_width              = {
+        progress_width                   = {
             config.progress.width,
             "number",
             "progress.width must be a number",
         },
-        progress_update_interval_ms = {
+        progress_name_width              = {
+            config.progress.name_width,
+            "number",
+            "progress.name_width must be a number",
+        },
+        progress_bar_width               = {
+            config.progress.bar_width,
+            "number",
+            "progress.bar_width must be a number",
+        },
+        progress_show_time               = {
+            config.progress.show_time,
+            "boolean",
+            "progress.show_time must be a boolean",
+        },
+        progress_scroll                  = {
+            config.progress.scroll,
+            "boolean",
+            "progress.scroll must be a boolean",
+        },
+        progress_scroll_separator        = {
+            config.progress.scroll_separator,
+            "string",
+            "progress.scroll_separator must be a string",
+        },
+        progress_update_interval_ms      = {
             config.progress.update_interval_ms,
             "number",
             "progress.update_interval_ms must be a number",
         },
-        progress_color              = {
+        progress_border                  = {
+            config.progress.border,
+            "table",
+            "progress.border must be a table",
+        },
+        progress_border_enabled          = {
+            config.progress.border.enabled,
+            "boolean",
+            "progress.border.enabled must be a boolean",
+        },
+        progress_border_left             = {
+            config.progress.border.left,
+            "string",
+            "progress.border.left must be a string",
+        },
+        progress_border_right            = {
+            config.progress.border.right,
+            "string",
+            "progress.border.right must be a string",
+        },
+        progress_border_padding          = {
+            config.progress.border.padding,
+            "string",
+            "progress.border.padding must be a string",
+        },
+        progress_lualine_separator       = {
+            config.progress.lualine_separator,
+            "table",
+            "progress.lualine_separator must be a table",
+        },
+        progress_lualine_separator_left  = {
+            config.progress.lualine_separator.left,
+            "string",
+            "progress.lualine_separator.left must be a string",
+        },
+        progress_lualine_separator_right = {
+            config.progress.lualine_separator.right,
+            "string",
+            "progress.lualine_separator.right must be a string",
+        },
+        progress_color                   = {
             config.progress.color,
             "table",
             "progress.color must be a table",
         },
-        progress_color_fg           = {
+        progress_color_fg                = {
             config.progress.color.fg,
             "string",
             "progress.color.fg must be a string",
         },
-        progress_color_bg           = {
+        progress_color_bg                = {
             config.progress.color.bg,
             "string",
             "progress.color.bg must be a string",
         },
-        progress_color_gui          = {
+        progress_color_gui               = {
             config.progress.color.gui,
             "string",
             "progress.color.gui must be a string",
         },
+        progress_colors                  = {
+            config.progress.colors,
+            "table",
+            "progress.colors must be a table",
+        },
     })
+
+    for name, value in pairs(config.progress.colors) do
+        vim.validate({
+            ["progress.colors." .. name] = {
+                value,
+                "table",
+                "progress.colors." .. name .. " must be a table",
+            },
+        })
+
+        if value.fg ~= nil then
+            vim.validate({
+                ["progress.colors." .. name .. ".fg"] = {
+                    value.fg,
+                    "string",
+                    "progress.colors." .. name .. ".fg must be a string",
+                },
+            })
+        end
+
+        if value.bg ~= nil then
+            vim.validate({
+                ["progress.colors." .. name .. ".bg"] = {
+                    value.bg,
+                    "string",
+                    "progress.colors." .. name .. ".bg must be a string",
+                },
+            })
+        end
+
+        if value.gui ~= nil then
+            vim.validate({
+                ["progress.colors." .. name .. ".gui"] = {
+                    value.gui,
+                    "string",
+                    "progress.colors." .. name .. ".gui must be a string",
+                },
+            })
+        end
+    end
 
     vim.validate({
         disable_all                 = {
@@ -348,6 +474,20 @@ local function validate(config)
                 return value >= 24 and value <= 80
             end,
             "progress.width must be between 24 and 80",
+        },
+        progress_name_width         = {
+            config.progress.name_width,
+            function(value)
+                return value >= 8 and value <= 60
+            end,
+            "progress.name_width must be between 8 and 60",
+        },
+        progress_bar_width          = {
+            config.progress.bar_width,
+            function(value)
+                return value >= 4 and value <= 40
+            end,
+            "progress.bar_width must be between 4 and 40",
         },
         progress_update_interval_ms = {
             config.progress.update_interval_ms,

@@ -50,11 +50,33 @@ return {
             volume = 80,
             progress = {
                 enabled = true,
+                width = 42,
+                name_width = 18,
+                bar_width = 10,
+                show_time = true,
+                scroll = false,
+                scroll_separator = "  ",
                 update_interval_ms = 500,
+                border = {
+                    enabled = true,
+                    left = "",
+                    right = "",
+                    padding = " ",
+                },
+                lualine_separator = {
+                    left = "",
+                    right = "",
+                },
                 color = {
                     fg = "#ffffff",
                     bg = "#5c7fe5",
                     gui = "bold",
+                },
+                colors = {
+                    playing = { bg = "#5c7fe5" },
+                    interval = { bg = "#7c6f64" },
+                    stopped = { bg = "#6c7086" },
+                    error = { bg = "#f38ba8" },
                 },
             },
         },
@@ -109,18 +131,40 @@ interval = {
 ```lua
 progress = {
     enabled = true,
+    width = 42,
+    name_width = 18,
+    bar_width = 10,
+    show_time = true,
+    scroll = false,
+    scroll_separator = "  ",
     update_interval_ms = 500,
+    border = {
+        enabled = true,
+        left = "",
+        right = "",
+        padding = " ",
+    },
+    lualine_separator = {
+        left = "",
+        right = "",
+    },
     color = {
         fg = "#ffffff",
         bg = "#5c7fe5",
         gui = "bold",
+    },
+    colors = {
+        playing = { bg = "#5c7fe5" },
+        interval = { bg = "#7c6f64" },
+        stopped = { bg = "#6c7086" },
+        error = { bg = "#f38ba8" },
     },
 }
 ```
 
 没有使用 lualine 时，也可以把 `require("ambient").statusline()` 接入自己的 statusline。
 
-## 健康检查
+## 检查
 
 ```vim
 :checkhealth ambient

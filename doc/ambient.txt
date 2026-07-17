@@ -199,11 +199,33 @@ Example:
   require("ambient").setup({
     progress = {
       enabled = true,
+      width = 42,
+      name_width = 18,
+      bar_width = 10,
+      show_time = true,
+      scroll = false,
+      scroll_separator = "  ",
       update_interval_ms = 500,
+      border = {
+        enabled = true,
+        left = "",
+        right = "",
+        padding = " ",
+      },
+      lualine_separator = {
+        left = "",
+        right = "",
+      },
       color = {
         fg = "#ffffff",
         bg = "#5b7ee5",
         gui = "bold",
+      },
+      colors = {
+        playing = { bg = "#5b7ee5" },
+        interval = { bg = "#7c6f64" },
+        stopped = { bg = "#6c7086" },
+        error = { bg = "#f38ba8" },
       },
     },
   })
@@ -237,11 +259,33 @@ Default-shaped configuration:
     },
     progress = {
       enabled = false,
+      width = 42,
+      name_width = 18,
+      bar_width = 10,
+      show_time = true,
+      scroll = false,
+      scroll_separator = "  ",
       update_interval_ms = 500,
+      border = {
+        enabled = true,
+        left = "",
+        right = "",
+        padding = " ",
+      },
+      lualine_separator = {
+        left = "",
+        right = "",
+      },
       color = {
         fg = "#ffffff",
         bg = "#5b7ee5",
         gui = "bold",
+      },
+      colors = {
+        playing = { bg = "#5b7ee5" },
+        interval = { bg = "#7c6f64" },
+        stopped = { bg = "#6c7086" },
+        error = { bg = "#f38ba8" },
       },
     },
     show_notifications = true,
@@ -287,11 +331,41 @@ interval.min_ms, interval.max_ms
 progress.enabled
     Whether the statusline progress component starts visible.
 
+progress.width
+    Fixed display width for the whole statusline component.
+
+progress.name_width
+    Maximum displayed width for the current track name.
+
+progress.bar_width
+    Width of the text progress bar.
+
+progress.show_time
+    Whether to show elapsed and total time, for example 0:01/0:12.
+
+progress.scroll
+    Whether long track names scroll instead of being truncated.
+
+progress.scroll_separator
+    Text inserted between repeated track names while scrolling.
+
 progress.update_interval_ms
     Statusline refresh interval.
 
+progress.border
+    Border text rendered inside the fixed-width component. The total
+    progress.width includes border.left, border.right, and padding.
+
+progress.lualine_separator
+    lualine component separator table. Use this when you want lualine to draw
+    separators outside progress.width.
+
 progress.color
-    lualine color table. Supports `fg`, `bg`, and `gui`.
+    Default lualine color table. Supports `fg`, `bg`, and `gui`.
+
+progress.colors
+    Per-state lualine color overrides. Supported keys include default, ready,
+    playing, interval, stopped, paused, next, and error.
 
 show_notifications
     Boolean shorthand. Set to false to disable all notifications.
