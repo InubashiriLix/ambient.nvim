@@ -34,11 +34,13 @@ local progress = {
         width = 42, -- ambient 状态栏文本的固定宽度
     },
     track = {
+        enabled = true, -- 显示当前歌曲标题
         width = 18, -- 当前歌曲名的最大显示宽度
         scroll = false,
         scroll_separator = "  ",
     },
     bar = {
+        enabled = true, -- 显示进度条和百分比
         style = "braille",
         width = 10, -- 进度条主体宽度，不包含 bar.left/bar.right
     },
@@ -166,11 +168,13 @@ progress = {
         width = 42,
     },
     track = {
+        enabled = true,
         width = 18,
         scroll = false,
         scroll_separator = "  ",
     },
     bar = {
+        enabled = true,
         style = "braille",
         width = 10,
     },
@@ -273,9 +277,11 @@ progress = {
 | --- | --- |
 | `progress.enabled` | setup 后是否显示状态栏组件。 |
 | `progress.layout.width` | ambient 组件文本的固定显示宽度。 |
+| `progress.track.enabled` | 是否显示当前歌曲标题。 |
 | `progress.track.width` | 当前歌曲名最多占用的宽度。 |
 | `progress.track.scroll` | 歌曲名过长时是否滚动显示。 |
 | `progress.track.scroll_separator` | 滚动时重复歌曲名之间的分隔文本。 |
+| `progress.bar.enabled` | 是否显示进度条和百分比。 |
 | `progress.bar.style` | 内置进度条样式或别名。 |
 | `progress.bar.width` | 进度条主体宽度。 |
 | `progress.bar.filled` | 已播放部分字符，必须占一个显示单元。 |

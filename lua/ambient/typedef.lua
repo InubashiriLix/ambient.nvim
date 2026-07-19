@@ -90,11 +90,13 @@ local M = {}
 ---@field width integer Fixed display width of ambient's statusline text; lualine separators and padding are outside it.
 
 ---@class AmbientProgressTrackConfig
+---@field enabled boolean Show the current track title.
 ---@field width integer Maximum display width for the current track name.
 ---@field scroll boolean Scroll long track names instead of truncating them.
 ---@field scroll_separator string Text inserted between repeated track names.
 
 ---@class AmbientProgressBarConfig
+---@field enabled boolean Show the progress bar and percentage.
 ---@field style AmbientProgressStyle Built-in style preset for the progress bar itself.
 ---@field width integer Display width of the progress bar body, excluding left/right wrappers.
 ---@field filled string Filled cell character. Must occupy one display cell.

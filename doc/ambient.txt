@@ -228,11 +228,13 @@ Example:
         width = 42,
       },
       track = {
+        enabled = true,
         width = 18,
         scroll = false,
         scroll_separator = "  ",
       },
       bar = {
+        enabled = true,
         style = "braille",
         width = 10,
       },
@@ -339,11 +341,13 @@ Default-shaped configuration:
         width = 42,
       },
       track = {
+        enabled = true,
         width = 18,
         scroll = false,
         scroll_separator = "  ",
       },
       bar = {
+        enabled = true,
         style = "braille",
         width = 10,
         filled = "⠶",
@@ -428,6 +432,9 @@ progress.layout.width
     Fixed display width for ambient's statusline text. lualine separators and
     padding are outside this width.
 
+progress.track.enabled
+    Whether to show the current track title.
+
 progress.track.width
     Maximum displayed width for the current track name.
 
@@ -443,6 +450,9 @@ progress.bar.style
     rounded, and slanted. Aliases include default, sparse, blocks, dense,
     classic, old, bracket, separator, segment, bubble, and round.
 
+progress.bar.enabled
+    Whether to show the progress bar and percentage.
+
 progress.bar.width
     Width of the text progress bar.
 
@@ -452,7 +462,7 @@ progress.bar
     wrap only the progress bar, not the whole statusline component.
 
 progress.time.enabled
-    Whether to show elapsed and total time, for example 0:01/0:12.
+    Whether to show elapsed and total time, for example 00:01/00:12.
 
 progress.refresh.interval_ms
     Statusline refresh interval.

@@ -38,11 +38,13 @@ local progress = {
         width = 24, -- fixed width of ambient's statusline text
     },
     track = {
+        enabled = true, -- show the current track title
         width = 18, -- max display width for the current track name
         scroll = true,
         scroll_separator = " ",
     },
     bar = {
+        enabled = true, -- show the progress bar and percentage
         style = "block",
         width = 6, -- progress body width, excluding bar.left/right
     },
@@ -189,11 +191,13 @@ progress = {
         width = 42,
     },
     track = {
+        enabled = true,
         width = 18,
         scroll = false,
         scroll_separator = "  ",
     },
     bar = {
+        enabled = true,
         style = "braille",
         width = 10,
     },
@@ -298,9 +302,11 @@ Progress options:
 | --- | --- |
 | `progress.enabled` | Show the statusline component after setup. |
 | `progress.layout.width` | Fixed display width of the ambient component text. |
+| `progress.track.enabled` | Show the current track title. |
 | `progress.track.width` | Maximum width reserved for the current track name. |
 | `progress.track.scroll` | Scroll long track names instead of truncating them. |
 | `progress.track.scroll_separator` | Text between repeated track names while scrolling. |
+| `progress.bar.enabled` | Show the progress bar and percentage. |
 | `progress.bar.style` | Built-in progress bar preset or alias. |
 | `progress.bar.width` | Width of the progress bar body. |
 | `progress.bar.filled` | Filled progress character, one display cell. |

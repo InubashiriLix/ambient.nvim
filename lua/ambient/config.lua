@@ -27,11 +27,13 @@ local default_config = {
             width = 42,
         },
         track     = {
+            enabled          = true,
             width            = 18,
             scroll           = false,
             scroll_separator = " ",
         },
         bar       = {
+            enabled = true,
             style  = progress_styles.default,
             width  = 10,
             filled = "⠶",
@@ -429,6 +431,11 @@ local function validate(config)
             "table",
             "progress.track must be a table",
         },
+        progress_track_enabled          = {
+            config.progress.track.enabled,
+            "boolean",
+            "progress.track.enabled must be a boolean",
+        },
         progress_track_width            = {
             config.progress.track.width,
             "number",
@@ -448,6 +455,11 @@ local function validate(config)
             config.progress.bar,
             "table",
             "progress.bar must be a table",
+        },
+        progress_bar_enabled            = {
+            config.progress.bar.enabled,
+            "boolean",
+            "progress.bar.enabled must be a boolean",
         },
         progress_bar_style              = {
             config.progress.bar.style,

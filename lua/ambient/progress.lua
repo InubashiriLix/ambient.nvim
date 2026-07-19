@@ -12,11 +12,13 @@ local default_config = {
         width = 42,
     },
     track     = {
+        enabled          = true,
         width            = 18,
         scroll           = false,
         scroll_separator = "  ",
     },
     bar       = {
+        enabled = true,
         style  = progress_styles.default,
         width  = 10,
         filled = "⠶",
@@ -253,6 +255,21 @@ local function renderPercentage(percentage)
     return string.format("%3d%%", clamp(percentage or 0, 0, 100))
 end
 
+---@return boolean
+local function showTrack()
+    return M.config.track.enabled == true
+end
+
+---@return boolean
+local function showBar()
+    return M.config.bar.enabled == true
+end
+
+---@return boolean
+local function showTime()
+    return M.config.time.enabled == true
+end
+
 ---@return string
 local function currentStateKey()
     local status = schedule:get()
@@ -426,30 +443,46 @@ local function renderStatusline(status)
 
     if status.state == schedule.State.PLAYING then
         local percentage = status.progress_percentage or 0
-        local bar        = renderBarWithFrame(percentage)
-        local suffix
-        if M.config.time.enabled then
-            suffix = string.format(
-                "%s %s %s",
-                renderTime(status.current_time_ms, status.duration_ms),
-                bar,
-                renderPercentage(percentage)
-            )
-        else
-            suffix = string.format("%s %s", bar, renderPercentage(percentage))
+
+        local suffix_parts = {}
+        if showTime() then
+            table.insert(suffix_parts, renderTime(status.current_time_ms, status.duration_ms))
         end
 
+        if showBar() then
+            table.insert(suffix_parts, renderBarWithFrame(percentage))
+            table.insert(suffix_parts, renderPercentage(percentage))
+        end
+
+        local suffix       = table.concat(suffix_parts, " ")
         local suffix_width = vim.fn.strdisplaywidth(suffix)
-        local name_width   = math.min(
-            M.config.track.width or default_config.track.width,
-            math.max(0, width - suffix_width - 1)
-        )
-        local name         = renderName(status.current_music_name or "ambient", name_width)
-        local content      = suffix
-        if name_width > 0 then
-            content = name .. " " .. suffix
+
+        local content_parts = {}
+        if showTrack() then
+            local available_width = width
+            if suffix ~= "" then
+                available_width = math.max(0, width - suffix_width - 1)
+            end
+
+            local name_width = math.min(
+                M.config.track.width or default_config.track.width,
+                available_width
+            )
+            local name       = renderName(status.current_music_name or "ambient", name_width)
+            if name ~= "" then
+                table.insert(content_parts, name)
+            end
         end
 
+        if suffix ~= "" then
+            table.insert(content_parts, suffix)
+        end
+
+        if #content_parts == 0 then
+            return ""
+        end
+
+        local content = table.concat(content_parts, " ")
         return escapeStatusline(frameContent(content))
     end
 
