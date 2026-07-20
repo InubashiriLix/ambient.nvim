@@ -167,9 +167,12 @@ local function scroll(value, width)
         return value
     end
 
-    local separator = M.config.track.scroll_separator or "  "
-    local source    = value .. separator
-    local chars     = vim.fn.strchars(source)
+    local separator = M.config.track.scroll_separator
+    if separator == nil or separator == "" then
+        separator = " "
+    end
+    local source = value .. separator
+    local chars  = vim.fn.strchars(source)
     if chars == 0 then
         return ""
     end
