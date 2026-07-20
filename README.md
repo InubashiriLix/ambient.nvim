@@ -167,8 +167,14 @@ interval = {
 | `:AmbientStop`           | Stop scheduling and the current track.          |
 | `:AmbientToggle`         | Toggle between active and stopped.              |
 | `:AmbientNext`           | Play the next track now.                        |
+| `:AmbientPlaylist`       | Select the active playlist.                     |
 | `:AmbientStatus`         | Show the current scheduler status.              |
 | `:AmbientProgressToggle` | Show or hide the statusline progress component. |
+
+When multiple playlists are configured, the first non-empty one is active after
+setup. `:AmbientPlaylist` uses `vim.ui.select()` to choose another playlist. The
+current playback or interval is stopped, and the scheduler returns to `READY`
+with the selected playlist.
 
 ## Statusline Progress
 

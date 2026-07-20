@@ -2,6 +2,7 @@ local M = {}
 
 local result   = require("ambient.result")
 local playlist = require("ambient.playlist")
+local selector = require("ambient.playlist_selector")
 local player   = require("ambient.player")
 
 local uv = vim.uv or vim.loop
@@ -26,6 +27,7 @@ local uv = vim.uv or vim.loop
 M.Error = {
     CONFIG_NOT_READY      = "CONFIG_NOT_READY",
     PLAYLIST_CONFIG_ERROR = "PLAYLIST_CONFIG_ERROR",
+    PLAYLIST_SELECTOR_ERROR = "PLAYLIST_SELECTOR_ERROR",
     EMPTY_PLAYLIST        = "EMPTY_PLAYLIST",
     PLAYER_ERROR          = "PLAYER_ERROR",
     TIMER_CREATE_FAILED   = "TIMER_CREATE_FAILED",
@@ -49,6 +51,9 @@ M.State = {
 ---@field mode? AmbientPlayerScheduleMode
 ---@field playlist_count integer
 ---@field total_music_count integer
+---@field current_playlist_name? string
+---@field current_playlist_path? string
+---@field current_playlist_music_count? integer
 ---@field current_music_name? string
 ---@field current_music_path? string
 ---@field current_time_ms? integer
@@ -60,7 +65,6 @@ M.State = {
 M.state                   = M.State.INIT
 M.config                  = nil
 M.playlists               = {}
-M.playlist_cursor         = 1
 M.current_music           = nil
 M.total_music_count       = 0
 M.interval_timer          = nil
@@ -117,6 +121,15 @@ local function closeAllTimers()
     M.next_due_time_ms = nil
 end
 
+local function resetToReadyAfterPlaylistSelection()
+    closeAllTimers()
+    player:shutdown()
+    M.current_music    = nil
+    M.next_due_time_ms = nil
+    M.last_error       = nil
+    setState(M.State.READY)
+end
+
 ---@param err AmbientScheduleError
 ---@param message? string
 ---@return AmbientErr<AmbientScheduleError>
@@ -132,16 +145,6 @@ end
 local function isContinuousMode(mode)
     return mode == "without_interval_random"
         or mode == "without_interval_sequential"
-        or mode == "continuous"
-        or mode == "continously"
-end
-
----@param mode AmbientPlayerScheduleMode
----@return boolean
-local function isRandomMode(mode)
-    return mode == "interval_random"
-        or mode == "without_interval_random"
-        or mode == "intermittently"
         or mode == "continuous"
         or mode == "continously"
 end
@@ -186,37 +189,12 @@ end
 
 ---@return AmbientMusic?
 local function takeNextMusic()
-    if #M.playlists == 0 then
+    local selected = selector:getCurrentPlayList()
+    if not selected.ok then
         return nil
     end
 
-    if isRandomMode(M.config.mode) then
-        local candidates = {}
-        for index, item in ipairs(M.playlists) do
-            if not item:isEmpty() then
-                table.insert(candidates, index)
-            end
-        end
-
-        if #candidates == 0 then
-            return nil
-        end
-
-        local playlist_index = candidates[math.random(#candidates)]
-        return takeMusicFromPlaylist(M.playlists[playlist_index])
-    end
-
-    for _ = 1, #M.playlists do
-        local playlist_index = M.playlist_cursor
-        M.playlist_cursor    = (M.playlist_cursor % #M.playlists) + 1
-
-        local item = M.playlists[playlist_index]
-        if not item:isEmpty() then
-            return takeMusicFromPlaylist(item)
-        end
-    end
-
-    return nil
+    return takeMusicFromPlaylist(selected.value)
 end
 
 ---@return AmbientResult<nil, AmbientScheduleError>
@@ -336,10 +314,10 @@ function M:setup(config)
 
     self.config            = config
     self.playlists         = {}
-    self.playlist_cursor   = 1
     self.current_music     = nil
     self.total_music_count = 0
     self.last_error        = nil
+    selector:reset()
 
     for _, playlist_config in ipairs(config.playlists or {}) do
         local created = playlist:new(
@@ -354,12 +332,22 @@ function M:setup(config)
             return fail(self.Error.PLAYLIST_CONFIG_ERROR, tostring(created.err))
         end
 
+        local added = selector:addPlayList(created.value)
+        if not added.ok then
+            return fail(self.Error.PLAYLIST_SELECTOR_ERROR, tostring(added.err))
+        end
+
         table.insert(self.playlists, created.value)
         self.total_music_count = self.total_music_count + #created.value.musics
     end
 
     if #self.playlists == 0 or self.total_music_count == 0 then
         return fail(self.Error.EMPTY_PLAYLIST)
+    end
+
+    local selector_ready = selector:setup()
+    if not selector_ready.ok then
+        return fail(self.Error.PLAYLIST_SELECTOR_ERROR, tostring(selector_ready.err))
     end
 
     local player_ready = player:setup(config)
@@ -433,6 +421,32 @@ function M:next()
     return playNow()
 end
 
+---@param index integer
+---@return AmbientResult<nil, AmbientPlayListSelectorError>
+function M:selectPlaylist(index)
+    local selected = selector:setCurrentPlaylist(index)
+    if not selected.ok then
+        return selected
+    end
+
+    resetToReadyAfterPlaylistSelection()
+    return result.ok(nil)
+end
+
+---@param on_select? AmbientPlayListSelectedCallback
+---@return AmbientResult<nil, AmbientPlayListSelectorError>
+function M:displayPlaylistSelectorUi(on_select)
+    return selector:displaySelectorUi(function(selected)
+        if selected.ok then
+            resetToReadyAfterPlaylistSelection()
+        end
+
+        if on_select ~= nil then
+            on_select(selected)
+        end
+    end)
+end
+
 ---@return AmbientResult<nil, AmbientScheduleError>
 function M:toggle()
     if self.state == self.State.PLAYING or self.state == self.State.INTERVAL or self.state == self.State.NEXT then
@@ -452,6 +466,16 @@ function M:get()
     local current_time_ms     = nil
     local duration_ms         = nil
     local progress_percentage = nil
+    local current_playlist_name = nil
+    local current_playlist_path = nil
+    local current_playlist_music_count = nil
+
+    local current_playlist = selector:getCurrentPlayList()
+    if current_playlist.ok then
+        current_playlist_name = current_playlist.value.name
+        current_playlist_path = current_playlist.value.abs_path
+        current_playlist_music_count = #current_playlist.value.musics
+    end
 
     if self.state == self.State.PLAYING then
         local progress = player:getProgress()
@@ -467,6 +491,9 @@ function M:get()
         mode                = self.config and self.config.mode or nil,
         playlist_count      = #self.playlists,
         total_music_count   = self.total_music_count,
+        current_playlist_name = current_playlist_name,
+        current_playlist_path = current_playlist_path,
+        current_playlist_music_count = current_playlist_music_count,
         current_music_name  = self.current_music and self.current_music.name or nil,
         current_music_path  = self.current_music and self.current_music.abs_path or nil,
         current_time_ms     = current_time_ms,
