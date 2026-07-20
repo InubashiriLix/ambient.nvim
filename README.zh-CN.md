@@ -273,7 +273,7 @@ progress = {
 | `abs_path` | 播放列表根目录。 |
 | `ext` | 当前播放列表的扩展名。 |
 | `recursive_depth` | 当前播放列表的扫描深度。 |
-| `sort_field` | `name`、`duration`、`modify_time`、`create_time` 或 `random`。 |
+| `sort_field` | `name`、`modify_time`、`create_time` 或 `random`。 |
 | `sort_direction` | `asc` 或 `desc`。 |
 
 进度组件选项：

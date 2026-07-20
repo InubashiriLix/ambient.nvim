@@ -299,7 +299,7 @@ Playlist options:
 | `abs_path` | Playlist root directory. |
 | `ext` | Extensions for this playlist. |
 | `recursive_depth` | Scan depth for this playlist. |
-| `sort_field` | `name`, `duration`, `modify_time`, `create_time`, or `random`. |
+| `sort_field` | `name`, `modify_time`, `create_time`, or `random`. |
 | `sort_direction` | `asc` or `desc`. |
 
 Progress options:

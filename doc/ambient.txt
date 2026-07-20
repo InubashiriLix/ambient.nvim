@@ -216,7 +216,7 @@ recursive_depth
     Maximum directory recursion depth.
 
 sort_field
-    One of: random, name, duration, modify_time, create_time.
+    One of: random, name, modify_time, create_time.
 
 sort_direction
     Either asc or desc.

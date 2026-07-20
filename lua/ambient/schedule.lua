@@ -25,17 +25,18 @@ local uv = vim.uv or vim.loop
 
 ---@enum AmbientScheduleError
 M.Error = {
-    CONFIG_NOT_READY      = "CONFIG_NOT_READY",
-    PLAYLIST_CONFIG_ERROR = "PLAYLIST_CONFIG_ERROR",
+    CONFIG_NOT_READY        = "CONFIG_NOT_READY",
+    PLAYLIST_CONFIG_ERROR   = "PLAYLIST_CONFIG_ERROR",
     PLAYLIST_SELECTOR_ERROR = "PLAYLIST_SELECTOR_ERROR",
-    EMPTY_PLAYLIST        = "EMPTY_PLAYLIST",
-    PLAYER_ERROR          = "PLAYER_ERROR",
-    TIMER_CREATE_FAILED   = "TIMER_CREATE_FAILED",
+    EMPTY_PLAYLIST          = "EMPTY_PLAYLIST",
+    PLAYER_ERROR            = "PLAYER_ERROR",
+    TIMER_CREATE_FAILED     = "TIMER_CREATE_FAILED",
 }
 
 ---@enum ScheduleState
 M.State = {
     INIT     = "INIT",
+    LOADING  = "LOADING",
     READY    = "READY",
     STOPPED  = "STOPPED",
     PAUSED   = "PAUSED",
@@ -79,7 +80,7 @@ local scheduleNext
 local function emitStateChanged()
     vim.schedule(function()
         pcall(vim.api.nvim_exec_autocmds, "User", {
-            pattern = "AmbientStateChanged",
+            pattern  = "AmbientStateChanged",
             modeline = false,
         })
     end)
@@ -463,17 +464,17 @@ function M:get()
         next_due_in_ms = math.max(0, self.next_due_time_ms - uv.now())
     end
 
-    local current_time_ms     = nil
-    local duration_ms         = nil
-    local progress_percentage = nil
-    local current_playlist_name = nil
-    local current_playlist_path = nil
+    local current_time_ms              = nil
+    local duration_ms                  = nil
+    local progress_percentage          = nil
+    local current_playlist_name        = nil
+    local current_playlist_path        = nil
     local current_playlist_music_count = nil
 
     local current_playlist = selector:getCurrentPlayList()
     if current_playlist.ok then
-        current_playlist_name = current_playlist.value.name
-        current_playlist_path = current_playlist.value.abs_path
+        current_playlist_name        = current_playlist.value.name
+        current_playlist_path        = current_playlist.value.abs_path
         current_playlist_music_count = #current_playlist.value.musics
     end
 
@@ -487,20 +488,20 @@ function M:get()
     end
 
     return result.ok({
-        state               = self.state,
-        mode                = self.config and self.config.mode or nil,
-        playlist_count      = #self.playlists,
-        total_music_count   = self.total_music_count,
-        current_playlist_name = current_playlist_name,
-        current_playlist_path = current_playlist_path,
+        state                        = self.state,
+        mode                         = self.config and self.config.mode or nil,
+        playlist_count               = #self.playlists,
+        total_music_count            = self.total_music_count,
+        current_playlist_name        = current_playlist_name,
+        current_playlist_path        = current_playlist_path,
         current_playlist_music_count = current_playlist_music_count,
-        current_music_name  = self.current_music and self.current_music.name or nil,
-        current_music_path  = self.current_music and self.current_music.abs_path or nil,
-        current_time_ms     = current_time_ms,
-        duration_ms         = duration_ms,
-        progress_percentage = progress_percentage,
-        next_due_in_ms      = next_due_in_ms,
-        last_error          = self.last_error,
+        current_music_name           = self.current_music and self.current_music.name or nil,
+        current_music_path           = self.current_music and self.current_music.abs_path or nil,
+        current_time_ms              = current_time_ms,
+        duration_ms                  = duration_ms,
+        progress_percentage          = progress_percentage,
+        next_due_in_ms               = next_due_in_ms,
+        last_error                   = self.last_error,
     })
 end
 
