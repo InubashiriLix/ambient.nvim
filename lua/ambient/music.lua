@@ -13,11 +13,13 @@ local result = require("ambient.result")
 ---@field cursor_time_ms integer
 ---@field proc_percentage integer
 ---@field cached_buf string|nil
+---@field state AmbientMusicState
 ---
 ---@field preload fun(self: AmbientMusic): AmbientResult<nil, AmbientMusicError>
 ---@field releasePreload fun(self: AmbientMusic): AmbientResult<nil, AmbientMusicError>
 ---
 ---note: these setgetters must success.
+---@field loadDurationAsync fun(self: AmbientMusic): nil
 ---@field getName fun(self: AmbientMusic): string
 ---@field getModifyTime fun(self: AmbientMusic): integer
 ---@field getChangeTime fun(self: AmbientMusic): integer
@@ -33,55 +35,13 @@ M.Error = {
     DURATION_PARSE_FAILED = "DURATION_PARSE_FAILED",
 }
 
-local function getDuration(abs_path)
-    if vim.fn.executable("ffprobe") == 0 then
-        return nil
-    end
-
-    local cmd = {
-        "ffprobe",
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration",
-        "-of",
-        "default=noprint_wrappers=1:nokey=1",
-        abs_path,
-    }
-
-    if vim.system ~= nil then
-        local ok, completed = pcall(function()
-            return vim.system(cmd, { text = true }):wait()
-        end)
-        if not ok or completed.code ~= 0 or completed.stdout == nil then
-            return nil
-        end
-
-        local seconds = tonumber(vim.split(completed.stdout, "\n", { trimempty = true })[1])
-        if not seconds then
-            return nil
-        end
-
-        return math.floor(seconds * 1000)
-    end
-
-    local ok, output = pcall(vim.fn.systemlist, cmd)
-
-    if not ok then
-        return nil
-    end
-
-    if vim.v.shell_error ~= 0 or #output == 0 then
-        return nil
-    end
-
-    local seconds = tonumber(output[1])
-    if not seconds then
-        return nil
-    end
-
-    return math.floor(seconds * 1000)
-end
+---@enum AmbientMusicState
+M.State = {
+    NOT_READY    = "NOT_READY",
+    INITIALIZING = "INITIALIZING",
+    DONE         = "DONE",
+    ERROR        = "ERROR",
+}
 
 ---@param abs_path string
 ---@return AmbientResult<AmbientMusic, AmbientMusicError>
@@ -94,10 +54,8 @@ function M:new(abs_path)
     file:close()
 
     -- get name
-    local name        = abs_path:match("([^/]+)%.[^%.]+$") or abs_path:match("([^/]+)$")
-    -- get duration_ms
-    local duration_ms = getDuration(abs_path) or 0
-
+    local name                                  = abs_path:match("([^/]+)%.[^%.]+$") or
+        abs_path:match("([^/]+)$")
     local modify_time, create_time, change_time = 0, 0, 0
     local stat                                  = vim.uv.fs_stat(abs_path)
     if stat then
@@ -113,13 +71,15 @@ function M:new(abs_path)
         modify_time_sec = modify_time,
         change_time_sec = change_time,
         create_time_sec = create_time,
-        duration_ms     = duration_ms,
+        duration_ms     = 0,
         cursor_time_ms  = 0,
         proc_percentage = 0,
         cached_buf      = nil,
+        state           = self.State.NOT_READY,
 
         -- prelaod and release cache mem
-        preload        = function(self)
+        ---@deprecated this function is never used. and it may provide better load performace with cost of brain cells (lots of status to deal)
+        preload = function(self)
             ---@type AmbientMusic
             local music = self
             vim.uv.fs_open(music.abs_path, "r", 438, function(open_err, fd)
@@ -141,6 +101,7 @@ function M:new(abs_path)
             end)
             return result.ok(nil)
         end,
+
         releasePreload = function(self)
             -- for empty cache, it also works, so no check needed
             self.cached_buf = nil
@@ -182,6 +143,54 @@ function M:new(abs_path)
 
         getProcPercentage = function(self)
             return self.proc_percentage
+        end,
+
+        loadDurationAsync = function(self)
+            if self.state == M.State.INITIALIZING or self.state == M.State.DONE then
+                return
+            end
+
+            if vim.fn.executable("ffprobe") == 0 or vim.system == nil then
+                self.duration_ms = 0
+                self.state       = M.State.ERROR
+                return
+            end
+
+            local cmd  = {
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                self.abs_path,
+            }
+            self.state = M.State.INITIALIZING
+
+            local started = pcall(
+                vim.system,
+                cmd,
+                { text = true },
+                vim.schedule_wrap(function(completed)
+                    local output  = completed.stdout
+                    local seconds = output and tonumber(vim.trim(output))
+
+                    if completed.code ~= 0 or seconds == nil then
+                        self.duration_ms = 0
+                        self.state       = M.State.ERROR
+                        return
+                    end
+
+                    self.duration_ms = math.floor(seconds * 1000)
+                    self.state       = M.State.DONE
+                end)
+            )
+
+            if not started then
+                self.duration_ms = 0
+                self.state       = M.State.ERROR
+            end
         end,
     }
 

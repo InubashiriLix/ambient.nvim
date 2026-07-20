@@ -91,7 +91,6 @@ local valid_modes = {
 
 local valid_sort_fields = {
     name        = true,
-    duration    = true,
     modify_time = true,
     create_time = true,
     random      = true,

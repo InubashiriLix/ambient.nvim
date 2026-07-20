@@ -1,7 +1,7 @@
 --- thius module should do these:
 ---     - sacn the provided path provided by the user
 ---     - provide sorted result using api
----       - supporting: name / by duration / by size / by last modify time / by create time / random
+---       - supporting: name / by size / by last modify time / by create time / random
 ---     - provide reload / refresh api to scan again and update the result
 
 local M = {}
@@ -21,11 +21,16 @@ M.Error = {
 ---@alias SortDirection "asc" | "desc"
 ---@alias SortField
 ---| "name"
----| "duration"
 ---| "modify_time"
 ---| "create_time"
 ---| "random"
 
+---@alias AmbientPlayListState
+---| "NOT_READY"
+---| "LOADING"
+---| "DONE"
+---| "PARTIAL_ERROR"
+---| "FETAL_ERROR"
 
 ---use iterator methods here. Noted that I prefer cursor mode than iterator one, cause' the future dev
 ---might need enough detail about the playlist. while the iterator mode is not enough for that...
@@ -33,6 +38,7 @@ M.Error = {
 ---fuck me
 
 ---@class AmbientPlayList
+---@field state AmbientPlayListState
 ---@field abs_path string
 ---@field name string
 ---@field musics AmbientMusic[]
@@ -41,20 +47,20 @@ M.Error = {
 ---@field sort_field SortField
 ---@field sort_direction SortDirection
 ---
----@field isEmpty fun(self: AmbientPlayList): boolean
----@field reload fun(self: AmbientPlayList): AmbientResult<nil, AmbientPlayListError>
----@field getSortMethod fun(self: AmbientPlayList): SortField, SortDirection
----@field setSortMethod fun(self: AmbientPlayList, field: SortField, direction: SortDirection)
----@field sort fun(self: AmbientPlayList): nil it must success!
+---@field public isEmpty fun(self: AmbientPlayList): boolean
+---@field public reload fun(self: AmbientPlayList): AmbientResult<nil, AmbientPlayListError>
+---@field public getSortMethod fun(self: AmbientPlayList): SortField, SortDirection
+---@field public setSortMethod fun(self: AmbientPlayList, field: SortField, direction: SortDirection)
+---@field public sort fun(self: AmbientPlayList): nil it must success!
 ---
----@field hasNext fun(self: AmbientPlayList): boolean
----@field next fun(self: AmbientPlayList): AmbientMusic | nil
----@field peekNext fun(self: AmbientPlayList): AmbientMusic | nil
----@field hasPrev fun(self: AmbientPlayList): boolean
----@field prev fun(self: AmbientPlayList): AmbientMusic | nil
----@field peekPrev fun(self: AmbientPlayList): AmbientMusic | nil
----@field getCurrent fun(self: AmbientPlayList): AmbientMusic | nil
----@field reset fun(self: AmbientPlayList): nil
+---@field public hasNext fun(self: AmbientPlayList): boolean
+---@field public next fun(self: AmbientPlayList): AmbientMusic | nil
+---@field public peekNext fun(self: AmbientPlayList): AmbientMusic | nil
+---@field public hasPrev fun(self: AmbientPlayList): boolean
+---@field public prev fun(self: AmbientPlayList): AmbientMusic | nil
+---@field public peekPrev fun(self: AmbientPlayList): AmbientMusic | nil
+---@field public getCurrent fun(self: AmbientPlayList): AmbientMusic | nil
+---@field public reset fun(self: AmbientPlayList): nil
 
 ---@param abs_path string
 ---@param ext string[]
@@ -129,7 +135,6 @@ function M:new(abs_path, ext, recursive_depth, sort_field, sort_direction)
     -- parse other args
     if recursive_depth <= 0 then return result.err(M.Error.INVALID_ARGUMENT) end
     if sort_field ~= "name"
-        and sort_field ~= "duration"
         and sort_field ~= "modify_time"
         and sort_field ~= "create_time"
         and sort_field ~= "random" then
@@ -144,6 +149,7 @@ function M:new(abs_path, ext, recursive_depth, sort_field, sort_direction)
     if not scan_result.ok then
         return result.err(M.Error.SCAN_FAILED)
     end
+
     -- load all music items
     ---@type AmbientMusic[]
     local musics = {}
@@ -158,6 +164,7 @@ function M:new(abs_path, ext, recursive_depth, sort_field, sort_direction)
 
     ---@type AmbientPlayList
     local obj = {
+        state          = "NOT_READY",
         abs_path       = abs_path,
         name           = abs_path:match("([^/]+)$"),
         musics         = musics,
@@ -207,7 +214,6 @@ function M:new(abs_path, ext, recursive_depth, sort_field, sort_direction)
         sort = function(self)
             local field_map = {
                 name        = "name",
-                duration    = "duration_ms",
                 modify_time = "modify_time_sec",
                 create_time = "create_time_sec",
             }

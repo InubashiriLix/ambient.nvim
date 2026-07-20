@@ -184,6 +184,9 @@ function M:play(music)
         return fail(self.Error.MPV_START_FAILED)
     end
 
+    -- we load the duration asynchronously only when we want to play this music
+    music:loadDurationAsync()
+
     self.state.current         = music
     self.state.job_id          = job_id
     self.state.pid             = getJobPid(job_id)
