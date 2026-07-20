@@ -19,12 +19,12 @@ local default_config = {
     },
     bar       = {
         enabled = true,
-        style  = progress_styles.default,
-        width  = 10,
-        filled = "⠶",
-        empty  = "⠄",
-        left   = "",
-        right  = "",
+        style   = progress_styles.default,
+        width   = 10,
+        filled  = "⠶",
+        empty   = "⠄",
+        left    = "",
+        right   = "",
     },
     time      = {
         enabled = true,
@@ -491,7 +491,16 @@ local function renderStatusline(status)
     end
 
     if status.state == schedule.State.READY then
-        return frameContent(string.format("ready (%d tracks)", status.total_music_count or 0))
+        local count = status.current_playlist_music_count or status.total_music_count or 0
+        if status.current_playlist_name ~= nil then
+            return frameContent(string.format(
+                "ready %s (%d tracks)",
+                status.current_playlist_name,
+                count
+            ))
+        end
+
+        return frameContent(string.format("ready (%d tracks)", count))
     end
 
     if status.last_error ~= nil then

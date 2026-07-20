@@ -147,8 +147,13 @@ interval = {
 | `:AmbientStop`           | 停止调度，并停止当前歌曲。  |
 | `:AmbientToggle`         | 在播放/等待和停止之间切换。 |
 | `:AmbientNext`           | 立刻播放下一首。            |
+| `:AmbientPlaylist`       | 选择当前播放列表。          |
 | `:AmbientStatus`         | 显示当前状态。              |
 | `:AmbientProgressToggle` | 显示或隐藏状态栏进度组件。  |
+
+配置多个播放列表时，setup 后默认选择第一个非空列表。`:AmbientPlaylist`
+通过 `vim.ui.select()` 切换播放列表；当前播放或等待会停止，调度器使用新列表
+回到 `READY` 状态。
 
 ## 状态栏进度
 

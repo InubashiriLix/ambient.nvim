@@ -130,6 +130,11 @@ COMMANDS                                                 *ambient-commands*
 :AmbientNext
     Play the next track immediately.
 
+                                                        *:AmbientPlaylist*
+:AmbientPlaylist
+    Select the active playlist with |vim.ui.select()|. Current playback or an
+    interval is stopped, and the scheduler returns to READY.
+
                                                         *:AmbientStatus*
 :AmbientStatus
     Show the current scheduler status with |vim.notify()|.
@@ -195,6 +200,9 @@ Use explicit playlists:
     },
   })
 <
+
+The first non-empty configured playlist is active after setup. Use
+|:AmbientPlaylist| to select another playlist.
 
 Playlist fields:
 
@@ -517,6 +525,12 @@ require("ambient").toggle()                            *ambient.toggle()*
 
 require("ambient").next()                              *ambient.next()*
     Play the next track immediately.
+
+require("ambient").select_playlist(index)              *ambient.select_playlist()*
+    Select the active playlist by its one-based index.
+
+require("ambient").select_playlist_ui()                *ambient.select_playlist_ui()*
+    Open |vim.ui.select()| to choose the active playlist.
 
 require("ambient").status()                            *ambient.status()*
     Return the scheduler status result.
