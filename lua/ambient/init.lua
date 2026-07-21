@@ -9,6 +9,30 @@ local schedule = require("ambient.schedule")
 
 local commands_registered = false
 
+local function stopPlaybackOnExit()
+    pcall(schedule.stop, schedule)
+end
+
+local function registerLifecycleAutocmds()
+    local group = vim.api.nvim_create_augroup("ambient_lifecycle", { clear = true })
+
+    vim.api.nvim_create_autocmd("VimLeavePre", {
+        group    = group,
+        desc     = "Stop ambient.nvim playback before Neovim exits",
+        callback = stopPlaybackOnExit,
+    })
+
+    vim.api.nvim_create_autocmd("UILeave", {
+        group    = group,
+        desc     = "Stop ambient.nvim playback when the last UI disconnects",
+        callback = function()
+            if #vim.api.nvim_list_uis() == 0 then
+                stopPlaybackOnExit()
+            end
+        end,
+    })
+end
+
 ---@param key? string
 ---@return boolean
 local function shouldNotify(key)
@@ -108,6 +132,7 @@ function M.register_commands()
     end
 
     commands_registered = true
+    registerLifecycleAutocmds()
 
     vim.api.nvim_create_user_command("AmbientStart", function()
         reportResult(M.start())
