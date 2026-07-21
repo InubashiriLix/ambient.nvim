@@ -142,9 +142,17 @@ function M.register_commands()
         reportResult(M.stop(), "Ambient stopped")
     end, { desc = "Stop ambient.nvim playback", force = true })
 
-    vim.api.nvim_create_user_command("AmbientToggle", function()
-        reportResult(M.toggle())
-    end, { desc = "Toggle ambient.nvim playback", force = true })
+    vim.api.nvim_create_user_command("AmbientPause", function()
+        reportResult(M.pause(), "Ambient paused")
+    end, { desc = "Pause ambient.nvim playback", force = true })
+
+    vim.api.nvim_create_user_command("AmbientTogglePause", function()
+        reportResult(M.toggle_pause_resume())
+    end, { desc = "Toggle ambient.nvim pause/resume or start playback now", force = true })
+
+    vim.api.nvim_create_user_command("AmbientToggleStop", function()
+        reportResult(M.toggle_start_stop())
+    end, { desc = "Toggle ambient.nvim start/stop", force = true })
 
     vim.api.nvim_create_user_command("AmbientNext", function()
         reportResult(M.next())
@@ -265,13 +273,31 @@ function M.pause()
 end
 
 ---@return AmbientResult<nil, any>
-function M.toggle()
+function M.toggle_pause_resume()
     local ready = ensureReady()
     if not ready.ok then
         return result.err(ready.err)
     end
 
-    local toggled = schedule:toggle()
+    local toggled = schedule:togglePauseResumeOrStartNow()
+    refreshProgress()
+    if toggled.ok then
+        local status = schedule:get()
+        if status.ok then
+            notify(formatStatus(status.value), vim.log.levels.INFO, "when_toogle_playing_state")
+        end
+    end
+    return toggled
+end
+
+---@return AmbientResult<nil, any>
+function M.toggle_start_stop()
+    local ready = ensureReady()
+    if not ready.ok then
+        return result.err(ready.err)
+    end
+
+    local toggled = schedule:toggleStartStop()
     refreshProgress()
     if toggled.ok then
         local status = schedule:get()

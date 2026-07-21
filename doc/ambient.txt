@@ -98,7 +98,9 @@ lazy.nvim example:
       cmd = {
         "AmbientStart",
         "AmbientStop",
-        "AmbientToggle",
+        "AmbientPause",
+        "AmbientTogglePause",
+        "AmbientToggleStop",
         "AmbientNext",
         "AmbientPlaylist",
         "AmbientSelectMusic",
@@ -124,9 +126,19 @@ COMMANDS                                                 *ambient-commands*
 :AmbientStop
     Stop scheduling and stop the current track.
 
-                                                        *:AmbientToggle*
-:AmbientToggle
-    Toggle between active playback/scheduling and stopped.
+                                                        *:AmbientPause*
+:AmbientPause
+    Pause the current track.
+
+                                                        *:AmbientTogglePause*
+:AmbientTogglePause
+    Pause while playing, resume while paused, or start playback immediately.
+    During a quiet interval, start the next track immediately.
+
+                                                        *:AmbientToggleStop*
+:AmbientToggleStop
+    Toggle between active playback/scheduling and stopped. A paused track is
+    considered active and is stopped.
 
                                                         *:AmbientNext*
 :AmbientNext
@@ -149,6 +161,14 @@ COMMANDS                                                 *ambient-commands*
                                                         *:AmbientProgressToggle*
 :AmbientProgressToggle
     Show or hide the statusline progress component.
+
+TOGGLE MIGRATION                                  *ambient-toggle-migration*
+
+The :AmbientToggle command and require("ambient").toggle() API were removed.
+To preserve the previous start/stop behavior, replace them with
+|:AmbientToggleStop| and require("ambient").toggle_start_stop(). For
+pause/resume behavior, use |:AmbientTogglePause| or
+require("ambient").toggle_pause_resume().
 
 ==============================================================================
 PLAYBACK MODES                                             *ambient-modes*
@@ -527,8 +547,16 @@ require("ambient").start()                             *ambient.start()*
 require("ambient").stop()                              *ambient.stop()*
     Stop scheduling and playback.
 
-require("ambient").toggle()                            *ambient.toggle()*
-    Toggle between active and stopped.
+require("ambient").pause()                             *ambient.pause()*
+    Pause the current track.
+
+require("ambient").toggle_pause_resume()               *ambient.toggle_pause_resume()*
+    Pause while playing, resume while paused, or start playback immediately.
+    During a quiet interval, start the next track immediately.
+
+require("ambient").toggle_start_stop()                 *ambient.toggle_start_stop()*
+    Toggle between active playback/scheduling and stopped. A paused track is
+    considered active and is stopped.
 
 require("ambient").next()                              *ambient.next()*
     Play the next track immediately.

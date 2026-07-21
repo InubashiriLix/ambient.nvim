@@ -476,9 +476,26 @@ function M:displayMusicSelectorUi(on_select)
 end
 
 ---@return AmbientResult<nil, AmbientScheduleError>
-function M:toggle()
-    if self.state == self.State.PLAYING or self.state == self.State.INTERVAL or self.state == self.State.NEXT then
+function M:toggleStartStop()
+    if self.state == self.State.PLAYING
+        or self.state == self.State.PAUSED
+        or self.state == self.State.INTERVAL
+        or self.state == self.State.NEXT
+    then
         return self:stop()
+    end
+
+    return self:start()
+end
+
+---@return AmbientResult<nil, AmbientScheduleError>
+function M:togglePauseResumeOrStartNow()
+    if self.state == self.State.PLAYING then
+        return self:pause()
+    end
+
+    if self.state == self.State.INTERVAL then
+        return playNow()
     end
 
     return self:start()

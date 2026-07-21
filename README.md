@@ -13,6 +13,7 @@ Neovim.
 
 - Local playback through `mpv`.
 - Interval or continuous playback.
+- Pause and resume the current track.
 - Random or sequential track selection.
 - Single directory, multiple directories, or explicit playlists.
 - Optional `lualine.nvim` progress component.
@@ -117,7 +118,9 @@ return {
         cmd = {
             "AmbientStart",
             "AmbientStop",
-            "AmbientToggle",
+            "AmbientPause",
+            "AmbientTogglePause",
+            "AmbientToggleStop",
             "AmbientNext",
             "AmbientPlaylist",
             "AmbientSelectMusic",
@@ -167,12 +170,22 @@ interval = {
 | ------------------------ | ------------------------------------------------------------- |
 | `:AmbientStart`          | Start scheduling and playback.                                |
 | `:AmbientStop`           | Stop scheduling and the current track.                        |
-| `:AmbientToggle`         | Toggle between active and stopped.                            |
+| `:AmbientPause`          | Pause the current track.                                      |
+| `:AmbientTogglePause`    | Pause, resume, or start playback immediately.                 |
+| `:AmbientToggleStop`     | Toggle between active playback/scheduling and stopped.        |
 | `:AmbientNext`           | Play the next track now.                                      |
 | `:AmbientPlaylist`       | Select the active playlist.                                   |
 | `:AmbientSelectMusic`    | Select and immediately play a track from the active playlist. |
 | `:AmbientStatus`         | Show the current scheduler status.                            |
 | `:AmbientProgressToggle` | Show or hide the statusline progress component.               |
+
+### Migrating From `AmbientToggle`
+
+The `:AmbientToggle` command and `require("ambient").toggle()` API have been
+removed. Replace them with `:AmbientToggleStop` and
+`require("ambient").toggle_start_stop()` to preserve the previous start/stop
+behavior. Use `:AmbientTogglePause` or
+`require("ambient").toggle_pause_resume()` when you want pause/resume behavior.
 
 When multiple playlists are configured, the first non-empty one is active after
 setup. `:AmbientPlaylist` uses `vim.ui.select()` to choose another playlist. The

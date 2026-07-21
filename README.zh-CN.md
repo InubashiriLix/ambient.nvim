@@ -10,6 +10,7 @@
 
 - 通过本机 `mpv` 播放音乐。
 - 支持间隔播放和连续播放。
+- 支持暂停和恢复当前歌曲。
 - 支持随机选歌和顺序选歌。
 - 支持单目录、多目录、完整播放列表。
 - 支持 `lualine.nvim` 状态栏进度组件。
@@ -97,7 +98,9 @@ return {
         cmd = {
             "AmbientStart",
             "AmbientStop",
-            "AmbientToggle",
+            "AmbientPause",
+            "AmbientTogglePause",
+            "AmbientToggleStop",
             "AmbientNext",
             "AmbientPlaylist",
             "AmbientSelectMusic",
@@ -147,12 +150,21 @@ interval = {
 | ------------------------ | ----------------------------------- |
 | `:AmbientStart`          | 开始调度并播放。                    |
 | `:AmbientStop`           | 停止调度，并停止当前歌曲。          |
-| `:AmbientToggle`         | 在播放/等待和停止之间切换。         |
+| `:AmbientPause`          | 暂停当前歌曲。                      |
+| `:AmbientTogglePause`    | 暂停、恢复，或立即开始播放。        |
+| `:AmbientToggleStop`     | 在播放/等待和停止之间切换。         |
 | `:AmbientNext`           | 立刻播放下一首。                    |
 | `:AmbientPlaylist`       | 选择当前播放列表。                  |
 | `:AmbientSelectMusic`    | 从当前播放列表选择并立刻播放歌曲。  |
 | `:AmbientStatus`         | 显示当前状态。                      |
 | `:AmbientProgressToggle` | 显示或隐藏状态栏进度组件。          |
+
+### 从 `AmbientToggle` 迁移
+
+`:AmbientToggle` 命令和 `require("ambient").toggle()` API 已移除。要保留原有的
+开始/停止行为，请分别改用 `:AmbientToggleStop` 和
+`require("ambient").toggle_start_stop()`；需要暂停/恢复时，请使用
+`:AmbientTogglePause` 或 `require("ambient").toggle_pause_resume()`。
 
 配置多个播放列表时，setup 后默认选择第一个非空列表。`:AmbientPlaylist`
 通过 `vim.ui.select()` 切换播放列表；当前播放或等待会停止，调度器使用新列表
