@@ -183,6 +183,11 @@ function M.register_commands()
             reportResult(toggled)
         end
     end, { desc = "Toggle ambient.nvim statusline progress", force = true })
+
+    vim.api.nvim_create_user_command("AmbientSysiphus", function()
+        local sysiphus = require("ambient.sysiphus")
+        reportResult(sysiphus.display())
+    end, { desc = "enjoy it", force = true })
 end
 
 ---@param opts? AmbientConfig
