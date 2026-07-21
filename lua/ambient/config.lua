@@ -1,6 +1,7 @@
 local M = {}
 
 local result          = require("ambient.result")
+local playlist        = require("ambient.playlist")
 local progress_styles = require("ambient.progress_styles")
 
 ---@enum AmbientConfigError
@@ -90,15 +91,15 @@ local valid_modes = {
 }
 
 local valid_sort_fields = {
-    name        = true,
-    modify_time = true,
-    create_time = true,
-    random      = true,
+    [playlist.SortField.name]        = true,
+    [playlist.SortField.modify_time] = true,
+    [playlist.SortField.create_time] = true,
+    [playlist.SortField.random]      = true,
 }
 
 local valid_sort_directions = {
-    asc  = true,
-    desc = true,
+    [playlist.SortDirection.asc]  = true,
+    [playlist.SortDirection.desc] = true,
 }
 
 local deprecated_progress_fields = {
@@ -309,9 +310,9 @@ local function normalize(config)
         ext             = config.extensions,
         recursive_depth = config.recursive_depth,
         sort_field      = (config.mode == "interval_sequential" or config.mode == "without_interval_sequential") and
-            "name"
-            or "random",
-        sort_direction  = "asc",
+            playlist.SortField.name
+            or playlist.SortField.random,
+        sort_direction  = playlist.SortDirection.asc,
     }
 
     local playlists = {}

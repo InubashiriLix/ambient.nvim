@@ -179,7 +179,7 @@ local function takeMusicFromPlaylist(item)
 
     if item:hasNext() then
         item:next()
-    elseif item.sort_field == "random" then
+    elseif item.sort_field == playlist.SortField.random then
         item:sort()
     else
         item:reset()
@@ -437,13 +437,40 @@ end
 ---@param on_select? AmbientPlayListSelectedCallback
 ---@return AmbientResult<nil, AmbientPlayListSelectorError>
 function M:displayPlaylistSelectorUi(on_select)
-    return selector:displaySelectorUi(function(selected)
+    return selector:displayPlayListSelectUi(function(selected)
         if selected.ok then
             resetToReadyAfterPlaylistSelection()
         end
 
         if on_select ~= nil then
             on_select(selected)
+        end
+    end)
+end
+
+---@alias AmbientScheduledMusicSelectedCallback fun(result: AmbientResult<AmbientMusic, AmbientPlayListSelectorError|AmbientScheduleError>): nil
+
+---@param on_select? AmbientScheduledMusicSelectedCallback
+---@return AmbientResult<nil, AmbientPlayListSelectorError>
+function M:displayMusicSelectorUi(on_select)
+    return selector:displayMusicItemSelectUi(function(selected)
+        if not selected.ok then
+            if on_select ~= nil then
+                on_select(result.err(selected.err))
+            end
+            return
+        end
+
+        local played = playNow()
+        if not played.ok then
+            if on_select ~= nil then
+                on_select(result.err(played.err))
+            end
+            return
+        end
+
+        if on_select ~= nil then
+            on_select(result.ok(selected.value))
         end
     end)
 end

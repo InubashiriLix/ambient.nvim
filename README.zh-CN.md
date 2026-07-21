@@ -99,6 +99,8 @@ return {
             "AmbientStop",
             "AmbientToggle",
             "AmbientNext",
+            "AmbientPlaylist",
+            "AmbientSelectMusic",
             "AmbientStatus",
             "AmbientProgressToggle",
         },
@@ -141,19 +143,23 @@ interval = {
 
 ## 命令
 
-| 命令                     | 作用                        |
-| ------------------------ | --------------------------- |
-| `:AmbientStart`          | 开始调度并播放。            |
-| `:AmbientStop`           | 停止调度，并停止当前歌曲。  |
-| `:AmbientToggle`         | 在播放/等待和停止之间切换。 |
-| `:AmbientNext`           | 立刻播放下一首。            |
-| `:AmbientPlaylist`       | 选择当前播放列表。          |
-| `:AmbientStatus`         | 显示当前状态。              |
-| `:AmbientProgressToggle` | 显示或隐藏状态栏进度组件。  |
+| 命令                     | 作用                                |
+| ------------------------ | ----------------------------------- |
+| `:AmbientStart`          | 开始调度并播放。                    |
+| `:AmbientStop`           | 停止调度，并停止当前歌曲。          |
+| `:AmbientToggle`         | 在播放/等待和停止之间切换。         |
+| `:AmbientNext`           | 立刻播放下一首。                    |
+| `:AmbientPlaylist`       | 选择当前播放列表。                  |
+| `:AmbientSelectMusic`    | 从当前播放列表选择并立刻播放歌曲。  |
+| `:AmbientStatus`         | 显示当前状态。                      |
+| `:AmbientProgressToggle` | 显示或隐藏状态栏进度组件。          |
 
 配置多个播放列表时，setup 后默认选择第一个非空列表。`:AmbientPlaylist`
 通过 `vim.ui.select()` 切换播放列表；当前播放或等待会停止，调度器使用新列表
 回到 `READY` 状态。
+
+`:AmbientSelectMusic` 会先选择列表的显示排序方式，再从当前播放列表选择歌曲并
+立刻播放。
 
 ## 状态栏进度
 

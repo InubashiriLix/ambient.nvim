@@ -18,12 +18,36 @@ M.Error = {
     INVALID_ARGUMENT = "INVALID_ARGUMENT",
 }
 
----@alias SortDirection "asc" | "desc"
----@alias SortField
----| "name"
----| "modify_time"
----| "create_time"
----| "random"
+---@enum SortDirection
+M.SortDirection = {
+    asc  = "asc",
+    desc = "desc",
+}
+---@enum SortField
+M.SortField     = {
+    name        = "name",
+    modify_time = "modify_time",
+    create_time = "create_time",
+    random      = "random",
+}
+
+local ordered_sort_fields = {
+    M.SortField.name,
+    M.SortField.create_time,
+    M.SortField.modify_time,
+    M.SortField.random,
+}
+
+local ordered_sort_directions = {
+    M.SortDirection.asc,
+    M.SortDirection.desc,
+}
+
+local sort_field_map = {
+    [M.SortField.name]        = "name",
+    [M.SortField.modify_time] = "modify_time_sec",
+    [M.SortField.create_time] = "create_time_sec",
+}
 
 ---@alias AmbientPlayListState
 ---| "NOT_READY"
@@ -31,6 +55,34 @@ M.Error = {
 ---| "DONE"
 ---| "PARTIAL_ERROR"
 ---| "FETAL_ERROR"
+
+---@return { field: SortField, direction: SortDirection }[]
+function M.getSortMethodTable()
+    local ret = {}
+
+    for _, field in ipairs(ordered_sort_fields) do
+        if field == M.SortField.random then
+            table.insert(ret, {
+                field     = field,
+                direction = M.SortDirection.asc,
+            })
+        else
+            for _, direction in ipairs(ordered_sort_directions) do
+                table.insert(ret, {
+                    field     = field,
+                    direction = direction,
+                })
+            end
+        end
+    end
+
+    return ret
+end
+
+---@class AmbientSortedMusicItem
+---@field position integer Position in this sorted snapshot.
+---@field source_index integer Index in `AmbientPlayList.musics`.
+---@field music AmbientMusic
 
 ---use iterator methods here. Noted that I prefer cursor mode than iterator one, cause' the future dev
 ---might need enough detail about the playlist. while the iterator mode is not enough for that...
@@ -52,7 +104,9 @@ M.Error = {
 ---@field public getSortMethod fun(self: AmbientPlayList): SortField, SortDirection
 ---@field public setSortMethod fun(self: AmbientPlayList, field: SortField, direction: SortDirection)
 ---@field public sort fun(self: AmbientPlayList): nil it must success!
+---@field public getSortedSnapshot fun(self: AmbientPlayList, sort_method: SortField, sort_direction: SortDirection): AmbientResult<AmbientSortedMusicItem[], AmbientPlayListError>
 ---
+---@field public setCursor fun(self: AmbientPlayList, index: integer): AmbientResult<nil, AmbientPlayListError>
 ---@field public hasNext fun(self: AmbientPlayList): boolean
 ---@field public next fun(self: AmbientPlayList): AmbientMusic | nil
 ---@field public peekNext fun(self: AmbientPlayList): AmbientMusic | nil
@@ -121,8 +175,8 @@ end
 function M:new(abs_path, ext, recursive_depth, sort_field, sort_direction)
     recursive_depth = recursive_depth or 1
     ext             = ext or { "mp3", "ogg", "flac", "wav" }
-    sort_field      = sort_field or "random"
-    sort_direction  = sort_direction or "asc"
+    sort_field      = sort_field or M.SortField.random
+    sort_direction  = sort_direction or M.SortDirection.asc
 
     -- check path existence
     local stat = vim.uv.fs_stat(abs_path)
@@ -134,13 +188,11 @@ function M:new(abs_path, ext, recursive_depth, sort_field, sort_direction)
 
     -- parse other args
     if recursive_depth <= 0 then return result.err(M.Error.INVALID_ARGUMENT) end
-    if sort_field ~= "name"
-        and sort_field ~= "modify_time"
-        and sort_field ~= "create_time"
-        and sort_field ~= "random" then
+    if sort_field ~= M.SortField.random and sort_field_map[sort_field] == nil then
         return result.err(M.Error.INVALID_ARGUMENT)
     end
-    if sort_direction ~= "asc" and sort_direction ~= "desc" then
+    if sort_direction ~= M.SortDirection.asc
+        and sort_direction ~= M.SortDirection.desc then
         return result.err(M.Error.INVALID_ARGUMENT)
     end
 
@@ -212,29 +264,23 @@ function M:new(abs_path, ext, recursive_depth, sort_field, sort_direction)
         end,
 
         sort = function(self)
-            local field_map = {
-                name        = "name",
-                modify_time = "modify_time_sec",
-                create_time = "create_time_sec",
-            }
-
             local indices = {}
             for i = 1, #self.musics do
                 table.insert(indices, i)
             end
 
-            if self.sort_field == "random" then
+            if self.sort_field == M.SortField.random then
                 for i = #indices, 2, -1 do
                     local j                = math.random(i)
                     indices[i], indices[j] = indices[j], indices[i]
                 end
             else
-                local field = field_map[self.sort_field]
+                local field = sort_field_map[self.sort_field]
                 local dir   = self.sort_direction
                 table.sort(indices, function(a, b)
                     local va = self.musics[a][field]
                     local vb = self.musics[b][field]
-                    if dir == "asc" then
+                    if dir == M.SortDirection.asc then
                         return va < vb
                     else
                         return va > vb
@@ -244,6 +290,17 @@ function M:new(abs_path, ext, recursive_depth, sort_field, sort_direction)
 
             self.sorted_indices = indices;
             self.cursor         = 1;
+        end,
+
+        setCursor = function(self, index)
+            if type(index) ~= "number"
+                or index % 1 ~= 0
+                or index < 1
+                or index > #self.sorted_indices then
+                return result.err(M.Error.INVALID_ARGUMENT)
+            end
+            self.cursor = index
+            return result.ok(nil)
         end,
 
         hasNext = function(self)
@@ -282,6 +339,58 @@ function M:new(abs_path, ext, recursive_depth, sort_field, sort_direction)
 
         reset = function(self)
             self.cursor = 1
+        end,
+
+        getSortedSnapshot = function(self, sort_method, sort_direction)
+            local field = sort_field_map[sort_method]
+            if sort_method ~= M.SortField.random and field == nil then
+                return result.err(M.Error.INVALID_ARGUMENT)
+            end
+
+            if sort_direction ~= M.SortDirection.asc
+                and sort_direction ~= M.SortDirection.desc then
+                return result.err(M.Error.INVALID_ARGUMENT)
+            end
+
+            local indices = {}
+            for i = 1, #self.musics do
+                table.insert(indices, i)
+            end
+
+            if sort_method == M.SortField.random then
+                for i = #indices, 2, -1 do
+                    local j                = math.random(i)
+                    indices[i], indices[j] = indices[j], indices[i]
+                end
+            else
+                ---@cast field string
+                table.sort(indices, function(a, b)
+                    local va = self.musics[a][field]
+                    local vb = self.musics[b][field]
+
+                    if va == vb then
+                        return a < b
+                    end
+
+                    if sort_direction == M.SortDirection.asc then
+                        return va < vb
+                    end
+
+                    return va > vb
+                end)
+            end
+
+            ---@type AmbientSortedMusicItem[]
+            local snapshot = {}
+            for position, source_index in ipairs(indices) do
+                table.insert(snapshot, {
+                    position     = position,
+                    source_index = source_index,
+                    music        = self.musics[source_index],
+                })
+            end
+
+            return result.ok(snapshot)
         end,
     }
 

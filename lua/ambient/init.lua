@@ -129,6 +129,10 @@ function M.register_commands()
         reportResult(M.select_playlist_ui())
     end, { desc = "Select the active ambient.nvim playlist", force = true })
 
+    vim.api.nvim_create_user_command("AmbientSelectMusic", function()
+        reportResult(M.select_music_item())
+    end, { desc = "Select and play an ambient.nvim track", force = true })
+
     vim.api.nvim_create_user_command("AmbientStatus", function()
         local status = M.status()
         if status.ok then
@@ -296,6 +300,24 @@ function M.select_playlist_ui()
 
         refreshProgress()
         notify("Ambient playlist: " .. selected.value.name)
+    end)
+end
+
+---@return AmbientResult<nil, any>
+function M.select_music_item()
+    local ready = ensureReady()
+    if not ready.ok then
+        return result.err(ready.err)
+    end
+
+    return schedule:displayMusicSelectorUi(function(selected)
+        if not selected.ok then
+            reportResult(selected)
+            return
+        end
+
+        refreshProgress()
+        notify("Ambient music: " .. selected.value.name)
     end)
 end
 

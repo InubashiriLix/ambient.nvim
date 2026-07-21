@@ -100,6 +100,8 @@ lazy.nvim example:
         "AmbientStop",
         "AmbientToggle",
         "AmbientNext",
+        "AmbientPlaylist",
+        "AmbientSelectMusic",
         "AmbientStatus",
         "AmbientProgressToggle",
       },
@@ -134,6 +136,11 @@ COMMANDS                                                 *ambient-commands*
 :AmbientPlaylist
     Select the active playlist with |vim.ui.select()|. Current playback or an
     interval is stopped, and the scheduler returns to READY.
+
+                                                        *:AmbientSelectMusic*
+:AmbientSelectMusic
+    Choose a display sort order, then select and immediately play a track from
+    the active playlist with |vim.ui.select()|.
 
                                                         *:AmbientStatus*
 :AmbientStatus
@@ -531,6 +538,10 @@ require("ambient").select_playlist(index)              *ambient.select_playlist(
 
 require("ambient").select_playlist_ui()                *ambient.select_playlist_ui()*
     Open |vim.ui.select()| to choose the active playlist.
+
+require("ambient").select_music_item()                 *ambient.select_music_item()*
+    Choose a display sort order, then select and immediately play a track from
+    the active playlist with |vim.ui.select()|.
 
 require("ambient").status()                            *ambient.status()*
     Return the scheduler status result.

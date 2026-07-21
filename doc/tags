@@ -1,6 +1,7 @@
 :AmbientNext	ambient.txt	/*:AmbientNext*
 :AmbientPlaylist	ambient.txt	/*:AmbientPlaylist*
 :AmbientProgressToggle	ambient.txt	/*:AmbientProgressToggle*
+:AmbientSelectMusic	ambient.txt	/*:AmbientSelectMusic*
 :AmbientStart	ambient.txt	/*:AmbientStart*
 :AmbientStatus	ambient.txt	/*:AmbientStatus*
 :AmbientStop	ambient.txt	/*:AmbientStop*
@@ -20,6 +21,7 @@ ambient-troubleshooting	ambient.txt	/*ambient-troubleshooting*
 ambient.hide_progress()	ambient.txt	/*ambient.hide_progress()*
 ambient.next()	ambient.txt	/*ambient.next()*
 ambient.nvim	ambient.txt	/*ambient.nvim*
+ambient.select_music_item()	ambient.txt	/*ambient.select_music_item()*
 ambient.select_playlist()	ambient.txt	/*ambient.select_playlist()*
 ambient.select_playlist_ui()	ambient.txt	/*ambient.select_playlist_ui()*
 ambient.setup()	ambient.txt	/*ambient.setup()*

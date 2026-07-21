@@ -119,6 +119,8 @@ return {
             "AmbientStop",
             "AmbientToggle",
             "AmbientNext",
+            "AmbientPlaylist",
+            "AmbientSelectMusic",
             "AmbientStatus",
             "AmbientProgressToggle",
         },
@@ -161,20 +163,24 @@ interval = {
 
 ## Commands
 
-| Command                  | Action                                          |
-| ------------------------ | ----------------------------------------------- |
-| `:AmbientStart`          | Start scheduling and playback.                  |
-| `:AmbientStop`           | Stop scheduling and the current track.          |
-| `:AmbientToggle`         | Toggle between active and stopped.              |
-| `:AmbientNext`           | Play the next track now.                        |
-| `:AmbientPlaylist`       | Select the active playlist.                     |
-| `:AmbientStatus`         | Show the current scheduler status.              |
-| `:AmbientProgressToggle` | Show or hide the statusline progress component. |
+| Command                  | Action                                                        |
+| ------------------------ | ------------------------------------------------------------- |
+| `:AmbientStart`          | Start scheduling and playback.                                |
+| `:AmbientStop`           | Stop scheduling and the current track.                        |
+| `:AmbientToggle`         | Toggle between active and stopped.                            |
+| `:AmbientNext`           | Play the next track now.                                      |
+| `:AmbientPlaylist`       | Select the active playlist.                                   |
+| `:AmbientSelectMusic`    | Select and immediately play a track from the active playlist. |
+| `:AmbientStatus`         | Show the current scheduler status.                            |
+| `:AmbientProgressToggle` | Show or hide the statusline progress component.               |
 
 When multiple playlists are configured, the first non-empty one is active after
 setup. `:AmbientPlaylist` uses `vim.ui.select()` to choose another playlist. The
 current playback or interval is stopped, and the scheduler returns to `READY`
 with the selected playlist.
+
+`:AmbientSelectMusic` first prompts for a display sort order, then prompts for
+a track from the active playlist and plays it immediately.
 
 ## Statusline Progress
 
