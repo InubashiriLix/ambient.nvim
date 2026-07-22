@@ -95,20 +95,7 @@ lazy.nvim example:
       name = "ambient.nvim",
       main = "ambient",
       event = "VeryLazy",
-      cmd = {
-        "AmbientStart",
-        "AmbientStop",
-        "AmbientPause",
-        "AmbientTogglePause",
-        "AmbientToggleStop",
-        "AmbientNext",
-        "AmbientPrevious",
-        "AmbientPlaylist",
-        "AmbientSelectMusic",
-        "AmbientSelectCurrentPlaylistMusic",
-        "AmbientStatus",
-        "AmbientProgressToggle",
-      },
+      cmd = "Ambient",
       opts = opts,
       config = function(_, opts)
         require("ambient").setup(opts)
@@ -120,66 +107,63 @@ lazy.nvim example:
 ==============================================================================
 COMMANDS                                                 *ambient-commands*
 
-                                                        *:AmbientStart*
-:AmbientStart
-    Start scheduling and playback.
+                                                               *:Ambient*
+:Ambient {subcommand}
+    Control ambient.nvim through the following command tree. Completion is
+    available at every level.
 
-                                                        *:AmbientStop*
-:AmbientStop
-    Stop scheduling and stop the current track.
+    start
+        Start scheduling and playback.
 
-                                                        *:AmbientPause*
-:AmbientPause
-    Pause the current track.
+    stop
+        Stop scheduling and stop the current track.
 
-                                                        *:AmbientTogglePause*
-:AmbientTogglePause
-    Pause while playing, resume while paused, or start playback immediately.
-    During a quiet interval, start the next track immediately.
+    pause
+        Pause the current track.
 
-                                                        *:AmbientToggleStop*
-:AmbientToggleStop
-    Toggle between active playback/scheduling and stopped. A paused track is
-    considered active and is stopped.
+    next
+        Play the next track immediately.
 
-                                                        *:AmbientNext*
-:AmbientNext
-    Play the next track immediately.
+    previous
+        Play the previous track from playback history.
 
-                                                        *:AmbientPrevious*
-:AmbientPrevious
-    Play the previous track from playback history.
+    status
+        Show the current scheduler status with |vim.notify()|.
 
-                                                        *:AmbientPlaylist*
-:AmbientPlaylist
-    Select the active playlist with |vim.ui.select()|. Current playback or an
-    interval is stopped, and the scheduler returns to READY.
+    toggle pause
+        Pause while playing, resume while paused, or start playback
+        immediately. During a quiet interval, start the next track immediately.
 
-                                                        *:AmbientSelectMusic*
-:AmbientSelectMusic
-    Choose a display sort order, then select and immediately play a track from
-    the active playlist with |vim.ui.select()|.
+    toggle stop
+        Toggle between active playback/scheduling and stopped. A paused track
+        is considered active and is stopped.
 
-                                      *:AmbientSelectCurrentPlaylistMusic*
-:AmbientSelectCurrentPlaylistMusic
-    Select and immediately play a track from the active playlist with
-    |vim.ui.select()|. Items stay in playback order while the selector cursor
-    moves to the playing track, or the next track when nothing is playing.
+    select playlist
+        Select the active playlist with |vim.ui.select()|. Current playback or
+        an interval is stopped, and the scheduler returns to READY.
 
-                                                        *:AmbientStatus*
-:AmbientStatus
-    Show the current scheduler status with |vim.notify()|.
+    select music
+        Choose a display sort order, then select and immediately play a track
+        from the active playlist with |vim.ui.select()|.
 
-                                                        *:AmbientProgressToggle*
-:AmbientProgressToggle
-    Show or hide the statusline progress component.
+    select current-playlist-music
+        Select and immediately play a track from the active playlist with
+        |vim.ui.select()|. Items stay in playback order while the selector
+        cursor moves to the playing track, or the next track when nothing is
+        playing.
 
-TOGGLE MIGRATION                                  *ambient-toggle-migration*
+    progress toggle
+        Show or hide the statusline progress component.
+
+COMMAND MIGRATION                                *ambient-command-migration*
+
+Legacy flat commands such as :AmbientStart and :AmbientSelectMusic are no
+longer registered. Use the corresponding |:Ambient| command tree entries.
 
 The :AmbientToggle command and require("ambient").toggle() API were removed.
-To preserve the previous start/stop behavior, replace them with
-|:AmbientToggleStop| and require("ambient").toggle_start_stop(). For
-pause/resume behavior, use |:AmbientTogglePause| or
+To preserve the previous start/stop behavior, use ":Ambient toggle stop" (see
+|:Ambient|) or require("ambient").toggle_start_stop(). For pause/resume
+behavior, use ":Ambient toggle pause" or
 require("ambient").toggle_pause_resume().
 
 ==============================================================================
@@ -241,7 +225,7 @@ Use explicit playlists:
 <
 
 The first non-empty configured playlist is active after setup. Use
-|:AmbientPlaylist| to select another playlist.
+":Ambient select playlist" (see |:Ambient|) to select another playlist.
 
 Playlist fields:
 
@@ -320,7 +304,7 @@ Example:
 
 Toggle it with:
 >
-  :AmbientProgressToggle
+  :Ambient progress toggle
 <
 
 Built-in styles:
@@ -446,7 +430,7 @@ Default-shaped configuration:
 Important options:
 
 enable
-    Set to false to disable playback through |:AmbientStart|.
+    Set to false to disable playback through ":Ambient start" (see |:Ambient|).
 
 music_dir
     Single music directory.

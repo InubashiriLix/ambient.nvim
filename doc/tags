@@ -1,16 +1,6 @@
-:AmbientNext	ambient.txt	/*:AmbientNext*
-:AmbientPause	ambient.txt	/*:AmbientPause*
-:AmbientPlaylist	ambient.txt	/*:AmbientPlaylist*
-:AmbientPrevious	ambient.txt	/*:AmbientPrevious*
-:AmbientProgressToggle	ambient.txt	/*:AmbientProgressToggle*
-:AmbientSelectCurrentPlaylistMusic	ambient.txt	/*:AmbientSelectCurrentPlaylistMusic*
-:AmbientSelectMusic	ambient.txt	/*:AmbientSelectMusic*
-:AmbientStart	ambient.txt	/*:AmbientStart*
-:AmbientStatus	ambient.txt	/*:AmbientStatus*
-:AmbientStop	ambient.txt	/*:AmbientStop*
-:AmbientTogglePause	ambient.txt	/*:AmbientTogglePause*
-:AmbientToggleStop	ambient.txt	/*:AmbientToggleStop*
+:Ambient	ambient.txt	/*:Ambient*
 ambient-api	ambient.txt	/*ambient-api*
+ambient-command-migration	ambient.txt	/*ambient-command-migration*
 ambient-commands	ambient.txt	/*ambient-commands*
 ambient-config	ambient.txt	/*ambient-config*
 ambient-contents	ambient.txt	/*ambient-contents*
@@ -21,7 +11,6 @@ ambient-playlists	ambient.txt	/*ambient-playlists*
 ambient-progress	ambient.txt	/*ambient-progress*
 ambient-requirements	ambient.txt	/*ambient-requirements*
 ambient-setup	ambient.txt	/*ambient-setup*
-ambient-toggle-migration	ambient.txt	/*ambient-toggle-migration*
 ambient-troubleshooting	ambient.txt	/*ambient-troubleshooting*
 ambient.hide_progress()	ambient.txt	/*ambient.hide_progress()*
 ambient.next()	ambient.txt	/*ambient.next()*

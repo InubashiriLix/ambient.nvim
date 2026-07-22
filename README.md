@@ -115,20 +115,7 @@ return {
         name = "ambient.nvim",
         main = "ambient",
         event = "VeryLazy",
-        cmd = {
-            "AmbientStart",
-            "AmbientStop",
-            "AmbientPause",
-            "AmbientTogglePause",
-            "AmbientToggleStop",
-            "AmbientNext",
-            "AmbientPrevious",
-            "AmbientPlaylist",
-            "AmbientSelectMusic",
-            "AmbientSelectCurrentPlaylistMusic",
-            "AmbientStatus",
-            "AmbientProgressToggle",
-        },
+        cmd = "Ambient",
         opts = opts,
         config = function(_, opts)
             require("ambient").setup(opts)
@@ -143,7 +130,7 @@ in your config because Neovim treats it as a special filename expansion pattern.
 Then start playback:
 
 ```vim
-:AmbientStart
+:Ambient start
 ```
 
 ## Playback Modes
@@ -168,38 +155,45 @@ interval = {
 
 ## Commands
 
-| Command                              | Action                                                                |
-| ------------------------------------ | --------------------------------------------------------------------- |
-| `:AmbientStart`                      | Start scheduling and playback.                                        |
-| `:AmbientStop`                       | Stop scheduling and the current track.                                |
-| `:AmbientPause`                      | Pause the current track.                                              |
-| `:AmbientTogglePause`                | Pause, resume, or start playback immediately.                         |
-| `:AmbientToggleStop`                 | Toggle between active playback/scheduling and stopped.                |
-| `:AmbientNext`                       | Play the next track now.                                              |
-| `:AmbientPrevious`                   | Play the previous track from playback history.                        |
-| `:AmbientPlaylist`                   | Select the active playlist.                                           |
-| `:AmbientSelectMusic`                | Choose a display sort, then select and play a track.                  |
-| `:AmbientSelectCurrentPlaylistMusic` | Select and play from the active playlist's current playback position. |
-| `:AmbientStatus`                     | Show the current scheduler status.                                    |
-| `:AmbientProgressToggle`             | Show or hide the statusline progress component.                       |
+| Command                                          | Action                                                                |
+| ------------------------------------------------ | --------------------------------------------------------------------- |
+| `:Ambient start`                                 | Start scheduling and playback.                                        |
+| `:Ambient stop`                                  | Stop scheduling and the current track.                                |
+| `:Ambient pause`                                 | Pause the current track.                                              |
+| `:Ambient next`                                  | Play the next track now.                                              |
+| `:Ambient previous`                              | Play the previous track from playback history.                        |
+| `:Ambient status`                                | Show the current scheduler status.                                    |
+| `:Ambient toggle pause`                          | Pause, resume, or start playback immediately.                         |
+| `:Ambient toggle stop`                           | Toggle between active playback/scheduling and stopped.                |
+| `:Ambient select playlist`                       | Select the active playlist.                                           |
+| `:Ambient select music`                          | Choose a display sort, then select and play a track.                  |
+| `:Ambient select current-playlist-music`         | Select and play from the active playlist's current playback position. |
+| `:Ambient progress toggle`                       | Show or hide the statusline progress component.                       |
 
-### Migrating From `AmbientToggle`
+Subcommands support completion at each level. For example, completing after
+`:Ambient select ` offers all selection commands.
+
+### Command Migration
+
+Legacy flat commands such as `:AmbientStart` and `:AmbientSelectMusic` are no
+longer registered. Use the corresponding `:Ambient ...` command tree entries
+shown above.
 
 The `:AmbientToggle` command and `require("ambient").toggle()` API have been
-removed. Replace them with `:AmbientToggleStop` and
+removed. Replace them with `:Ambient toggle stop` and
 `require("ambient").toggle_start_stop()` to preserve the previous start/stop
-behavior. Use `:AmbientTogglePause` or
+behavior. Use `:Ambient toggle pause` or
 `require("ambient").toggle_pause_resume()` when you want pause/resume behavior.
 
 When multiple playlists are configured, the first non-empty one is active after
-setup. `:AmbientPlaylist` uses `vim.ui.select()` to choose another playlist. The
+setup. `:Ambient select playlist` uses `vim.ui.select()` to choose another playlist. The
 current playback or interval is stopped, and the scheduler returns to `READY`
 with the selected playlist.
 
-`:AmbientSelectMusic` first prompts for a display sort order, then prompts for
+`:Ambient select music` first prompts for a display sort order, then prompts for
 a track from the active playlist and plays it immediately.
 
-`:AmbientSelectCurrentPlaylistMusic` keeps the active playlist in playback
+`:Ambient select current-playlist-music` keeps the active playlist in playback
 order and moves the selector cursor to the playing track, or to the playlist
 cursor when no track is playing. The selected track is played immediately.
 
