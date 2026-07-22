@@ -95,20 +95,7 @@ return {
         name = "ambient.nvim",
         main = "ambient",
         event = "VeryLazy",
-        cmd = {
-            "AmbientStart",
-            "AmbientStop",
-            "AmbientPause",
-            "AmbientTogglePause",
-            "AmbientToggleStop",
-            "AmbientNext",
-            "AmbientPrevious",
-            "AmbientPlaylist",
-            "AmbientSelectMusic",
-            "AmbientSelectCurrentPlaylistMusic",
-            "AmbientStatus",
-            "AmbientProgressToggle",
-        },
+        cmd = "Ambient",
         opts = opts,
         config = function(_, opts)
             require("ambient").setup(opts)
@@ -123,7 +110,7 @@ return {
 启动播放：
 
 ```vim
-:AmbientStart
+:Ambient start
 ```
 
 ## 播放模式
@@ -148,36 +135,42 @@ interval = {
 
 ## 命令
 
-| 命令                                     | 作用                                           |
-| ---------------------------------------- | ---------------------------------------------- |
-| `:AmbientStart`                          | 开始调度并播放。                               |
-| `:AmbientStop`                           | 停止调度，并停止当前歌曲。                     |
-| `:AmbientPause`                          | 暂停当前歌曲。                                 |
-| `:AmbientTogglePause`                    | 暂停、恢复，或立即开始播放。                   |
-| `:AmbientToggleStop`                     | 在播放/等待和停止之间切换。                    |
-| `:AmbientNext`                           | 立刻播放下一首。                               |
-| `:AmbientPrevious`                       | 播放历史中的上一首。                           |
-| `:AmbientPlaylist`                       | 选择当前播放列表。                             |
-| `:AmbientSelectMusic`                    | 先选择显示排序，再选择并立刻播放歌曲。         |
-| `:AmbientSelectCurrentPlaylistMusic`     | 从当前播放位置选择并立刻播放歌曲。             |
-| `:AmbientStatus`                         | 显示当前状态。                                 |
-| `:AmbientProgressToggle`                 | 显示或隐藏状态栏进度组件。                     |
+| 命令                                             | 作用                                   |
+| ------------------------------------------------ | -------------------------------------- |
+| `:Ambient start`                                 | 开始调度并播放。                       |
+| `:Ambient stop`                                  | 停止调度，并停止当前歌曲。             |
+| `:Ambient pause`                                 | 暂停当前歌曲。                         |
+| `:Ambient next`                                  | 立刻播放下一首。                       |
+| `:Ambient previous`                              | 播放历史中的上一首。                   |
+| `:Ambient status`                                | 显示当前状态。                         |
+| `:Ambient toggle pause`                          | 暂停、恢复，或立即开始播放。           |
+| `:Ambient toggle stop`                           | 在播放/等待和停止之间切换。            |
+| `:Ambient select playlist`                       | 选择当前播放列表。                     |
+| `:Ambient select music`                          | 先选择显示排序，再选择并播放歌曲。     |
+| `:Ambient select current-playlist-music`         | 从当前播放位置选择并播放歌曲。         |
+| `:Ambient progress toggle`                       | 显示或隐藏状态栏进度组件。             |
 
-### 从 `AmbientToggle` 迁移
+每一级子命令都支持补全。例如，在 `:Ambient select ` 后触发补全会列出所有选择
+命令。
+
+### 命令迁移
+
+`:AmbientStart`、`:AmbientSelectMusic` 等旧平铺命令不再注册，请改用上表对应的
+`:Ambient ...` 树状命令。
 
 `:AmbientToggle` 命令和 `require("ambient").toggle()` API 已移除。要保留原有的
-开始/停止行为，请分别改用 `:AmbientToggleStop` 和
+开始/停止行为，请分别改用 `:Ambient toggle stop` 和
 `require("ambient").toggle_start_stop()`；需要暂停/恢复时，请使用
-`:AmbientTogglePause` 或 `require("ambient").toggle_pause_resume()`。
+`:Ambient toggle pause` 或 `require("ambient").toggle_pause_resume()`。
 
-配置多个播放列表时，setup 后默认选择第一个非空列表。`:AmbientPlaylist`
+配置多个播放列表时，setup 后默认选择第一个非空列表。`:Ambient select playlist`
 通过 `vim.ui.select()` 切换播放列表；当前播放或等待会停止，调度器使用新列表
 回到 `READY` 状态。
 
-`:AmbientSelectMusic` 会先选择列表的显示排序方式，再从当前播放列表选择歌曲并
+`:Ambient select music` 会先选择列表的显示排序方式，再从当前播放列表选择歌曲并
 立刻播放。
 
-`:AmbientSelectCurrentPlaylistMusic` 会保持当前播放列表的实际顺序不变，并把
+`:Ambient select current-playlist-music` 会保持当前播放列表的实际顺序不变，并把
 选择器光标移动到正在播放的歌曲；没有歌曲正在播放时则移动到播放列表光标所指
 的下一首。选中的歌曲会立刻播放。
 

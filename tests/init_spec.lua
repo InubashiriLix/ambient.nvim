@@ -4,6 +4,7 @@ local result = require("ambient.result")
 local function loadAmbient(options)
     options = options or {}
     local commands = {}
+    local command_options = {}
     local notifications = {}
     local refresh_count = 0
     local cfg = options.config
@@ -124,8 +125,9 @@ local function loadAmbient(options)
             nvim_list_uis = function()
                 return { {} }
             end,
-            nvim_create_user_command = function(name, callback)
+            nvim_create_user_command = function(name, callback, command_opts)
                 commands[name] = callback
+                command_options[name] = command_opts
             end,
         },
     }
@@ -141,28 +143,29 @@ local function loadAmbient(options)
         notifications,
         function()
             return refresh_count
-        end
+        end,
+        command_options
 end
 
-t.test("init registers and routes AmbientPrevious", function()
+t.test("init replaces flat commands with the Ambient command tree", function()
     local ambient, schedule, commands = loadAmbient()
     ambient.register_commands()
-    t.truthy(commands.AmbientPrevious)
+    t.truthy(commands.Ambient)
+    t.falsy(commands.AmbientPrevious)
+    t.falsy(commands.AmbientSelectMusic)
 
     local calls = 0
     function schedule:previous()
         calls = calls + 1
         return result.ok(nil)
     end
-    commands.AmbientPrevious()
+    commands.Ambient({ args = "previous" })
     t.eq(calls, 1)
 end)
 
 t.test("init routes sorted and current-playlist music commands separately", function()
     local ambient, schedule, commands = loadAmbient()
     ambient.register_commands()
-    t.truthy(commands.AmbientSelectMusic)
-    t.truthy(commands.AmbientSelectCurrentPlaylistMusic)
 
     local sorted_calls = 0
     local current_calls = 0
@@ -174,10 +177,51 @@ t.test("init routes sorted and current-playlist music commands separately", func
         current_calls = current_calls + 1
         return result.ok(nil)
     end
-    commands.AmbientSelectMusic()
-    commands.AmbientSelectCurrentPlaylistMusic()
+    commands.Ambient({ args = "select music" })
+    commands.Ambient({ args = "select current-playlist-music" })
     t.eq(sorted_calls, 1)
     t.eq(current_calls, 1)
+end)
+
+t.test("Ambient command completion follows the command tree", function()
+    local ambient, _, commands, _, _, command_options = loadAmbient()
+    ambient.register_commands()
+    local complete = command_options.Ambient.complete
+
+    t.eq(complete("", "Ambient ", 8), {
+        "next",
+        "pause",
+        "previous",
+        "progress",
+        "select",
+        "start",
+        "status",
+        "stop",
+        "toggle",
+    })
+    t.eq(complete("p", "Ambient p", 9), { "pause", "previous", "progress" })
+    t.eq(complete("", "Ambient toggle ", 15), { "pause", "stop" })
+    t.eq(complete("current", "Ambient select current", 22), { "current-playlist-music" })
+    t.eq(complete("", "Ambient progress ", 17), { "toggle" })
+    t.eq(complete("", "Ambient status ", 15), {})
+    t.truthy(commands.Ambient)
+end)
+
+t.test("Ambient command reports incomplete and unknown paths", function()
+    local ambient, _, commands, notifications = loadAmbient({
+        config = {
+            enable = true,
+            show_notification = { disable_all = false },
+        },
+    })
+    ambient.register_commands()
+
+    commands.Ambient({ args = "select" })
+    commands.Ambient({ args = "does-not-exist" })
+
+    t.truthy(notifications[1]:match("subcommand required"))
+    t.truthy(notifications[1]:match("current%-playlist%-music, music, playlist"))
+    t.truthy(notifications[2]:match("Unknown Ambient command"))
 end)
 
 t.test("init forwards scheduler failures without re-wrapping them", function()

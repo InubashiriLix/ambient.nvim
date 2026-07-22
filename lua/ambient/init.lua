@@ -114,58 +114,149 @@ function M.register_commands()
         end,
     })
 
-    vim.api.nvim_create_user_command("AmbientStart", function()
-        reportResult(M.start())
-    end, { desc = "Start ambient.nvim playback", force = true })
+    ---@class AmbientCommandNode
+    ---@field run? fun()
+    ---@field children? table<string, AmbientCommandNode>
 
-    vim.api.nvim_create_user_command("AmbientStop", function()
-        reportResult(M.stop(), "Ambient stopped")
-    end, { desc = "Stop ambient.nvim playback", force = true })
+    ---@type AmbientCommandNode
+    local command_root = {
+        children = {
+            start = {
+                run = function()
+                    reportResult(M.start())
+                end,
+            },
+            stop = {
+                run = function()
+                    reportResult(M.stop(), "Ambient stopped")
+                end,
+            },
+            pause = {
+                run = function()
+                    reportResult(M.pause(), "Ambient paused")
+                end,
+            },
+            next = {
+                run = function()
+                    reportResult(M.next())
+                end,
+            },
+            previous = {
+                run = function()
+                    reportResult(M.previous())
+                end,
+            },
+            status = {
+                run = function()
+                    notify(formatStatus(schedule:getStatus()))
+                end,
+            },
+            toggle = {
+                children = {
+                    pause = {
+                        run = function()
+                            reportResult(M.toggle_pause_resume())
+                        end,
+                    },
+                    stop = {
+                        run = function()
+                            reportResult(M.toggle_start_stop())
+                        end,
+                    },
+                },
+            },
+            select = {
+                children = {
+                    playlist = {
+                        run = function()
+                            reportResult(M.select_playlist_ui())
+                        end,
+                    },
+                    music = {
+                        run = function()
+                            reportResult(M.select_music_item())
+                        end,
+                    },
+                    ["current-playlist-music"] = {
+                        run = function()
+                            reportResult(M.select_current_playlist_music_item())
+                        end,
+                    },
+                },
+            },
+            progress = {
+                children = {
+                    toggle = {
+                        run = function()
+                            local toggled = M.toggle_progress()
+                            if toggled.ok then
+                                notify("Ambient progress " .. (toggled.value and "shown" or "hidden"))
+                            else
+                                reportResult(toggled)
+                            end
+                        end,
+                    },
+                },
+            },
+        },
+    }
 
-    vim.api.nvim_create_user_command("AmbientPause", function()
-        reportResult(M.pause(), "Ambient paused")
-    end, { desc = "Pause ambient.nvim playback", force = true })
-
-    vim.api.nvim_create_user_command("AmbientTogglePause", function()
-        reportResult(M.toggle_pause_resume())
-    end, { desc = "Toggle ambient.nvim pause/resume or start playback now", force = true })
-
-    vim.api.nvim_create_user_command("AmbientToggleStop", function()
-        reportResult(M.toggle_start_stop())
-    end, { desc = "Toggle ambient.nvim start/stop", force = true })
-
-    vim.api.nvim_create_user_command("AmbientNext", function()
-        reportResult(M.next())
-    end, { desc = "Play the next ambient.nvim track now", force = true })
-
-    vim.api.nvim_create_user_command("AmbientPrevious", function()
-        reportResult(M.previous())
-    end, { desc = "Play the previous ambient.nvim track now", force = true })
-
-    vim.api.nvim_create_user_command("AmbientPlaylist", function()
-        reportResult(M.select_playlist_ui())
-    end, { desc = "Select the active ambient.nvim playlist", force = true })
-
-    vim.api.nvim_create_user_command("AmbientSelectMusic", function()
-        reportResult(M.select_music_item())
-    end, { desc = "Sort, select, and play an ambient.nvim track", force = true })
-
-    vim.api.nvim_create_user_command("AmbientSelectCurrentPlaylistMusic", function()
-        reportResult(M.select_current_playlist_music_item())
-    end, { desc = "Select and play from the current ambient.nvim playlist position", force = true })
-
-    vim.api.nvim_create_user_command("AmbientStatus", function()
-        notify(formatStatus(schedule:getStatus()))
-    end, { desc = "Show ambient.nvim status", force = true })
-
-    vim.api.nvim_create_user_command("AmbientProgressToggle", function()
-        local toggled = M.toggle_progress()
-        if toggled.ok then
-            notify("Ambient progress " .. (toggled.value and "shown" or "hidden"))
-        else
-            reportResult(toggled)
+    vim.api.nvim_create_user_command("Ambient", function(opts)
+        local node = command_root
+        for token in opts.args:gmatch("%S+") do
+            if node.children == nil or node.children[token] == nil then
+                notify("Unknown Ambient command: " .. opts.args, vim.log.levels.ERROR)
+                return
+            end
+            node = node.children[token]
         end
-    end, { desc = "Toggle ambient.nvim statusline progress", force = true })
+
+        if node.run == nil then
+            local available = {}
+            for name in pairs(node.children or {}) do
+                table.insert(available, name)
+            end
+            table.sort(available)
+            notify("Ambient subcommand required: " .. table.concat(available, ", "), vim.log.levels.ERROR)
+            return
+        end
+
+        node.run()
+    end, {
+        nargs = "*",
+        desc = "Control ambient.nvim",
+        force = true,
+        complete = function(arg_lead, cmd_line, cursor_pos)
+            local before_cursor = cmd_line:sub(1, cursor_pos)
+            local args          = before_cursor:match("^%s*:?[Aa]mbient%s?(.*)$") or ""
+            local tokens        = {}
+            for token in args:gmatch("%S+") do
+                table.insert(tokens, token)
+            end
+
+            -- The last token is the partial argument represented by arg_lead.
+            if args:match("%S$") then
+                table.remove(tokens)
+            end
+
+            local node = command_root
+            for _, token in ipairs(tokens) do
+                if node.children == nil or node.children[token] == nil then
+                    return {}
+                end
+                node = node.children[token]
+            end
+
+            local matches = {}
+            for name in pairs(node.children or {}) do
+                if name:sub(1, #arg_lead) == arg_lead then
+                    table.insert(matches, name)
+                end
+            end
+            table.sort(matches)
+            return matches
+        end,
+    })
 end
 
 ---@param opts? AmbientConfig
