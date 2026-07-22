@@ -1,33 +1,34 @@
 local t = require("tests.testlib")
 
 local function loadPlayer(options)
-    options = options or {}
-    local now = options.now or 1000
-    local jobs = {}
+    options            = options or {}
+    local now          = options.now or 1000
+    local jobs         = {}
     local stopped_jobs = {}
-    local killed = {}
+    local killed       = {}
 
     _G.vim = {
         uv = {
-            now = function()
+            now       = function()
                 return now
             end,
-            kill = function(pid, signal)
+            kill      = function(pid, signal)
                 table.insert(killed, { pid = pid, signal = signal })
             end,
             constants = { SIGSTOP = 19, SIGCONT = 18 },
         },
+
         fn = {
-            exists = function()
+            exists     = function()
                 return 1
             end,
             executable = function()
                 return options.executable == false and 0 or 1
             end,
-            jobpid = function(job_id)
+            jobpid     = function(job_id)
                 return job_id + 1000
             end,
-            jobstart = function(args, callbacks)
+            jobstart   = function(args, callbacks)
                 if options.job_id ~= nil and options.job_id <= 0 then
                     return options.job_id
                 end
@@ -35,10 +36,11 @@ local function loadPlayer(options)
                 jobs[id] = { args = args, callbacks = callbacks }
                 return id
             end,
-            jobstop = function(job_id)
+            jobstop    = function(job_id)
                 table.insert(stopped_jobs, job_id)
             end,
         },
+
         deepcopy = function(value)
             local copied = {}
             for key, item in pairs(value) do
@@ -52,10 +54,10 @@ local function loadPlayer(options)
     local player = require("ambient.player")
     return player,
         {
-            jobs = jobs,
+            jobs         = jobs,
             stopped_jobs = stopped_jobs,
-            killed = killed,
-            setNow = function(value)
+            killed       = killed,
+            setNow       = function(value)
                 now = value
             end,
         }
@@ -63,14 +65,14 @@ end
 
 local function music(name, duration)
     return {
-        name = name,
-        abs_path = "/music/" .. name .. ".wav",
-        duration_ms = duration or 10000,
-        load_count = 0,
+        name              = name,
+        abs_path          = "/music/" .. name .. ".wav",
+        duration_ms       = duration or 10000,
+        load_count        = 0,
         loadDurationAsync = function(self)
             self.load_count = self.load_count + 1
         end,
-        setCursorTime = function(self, value)
+        setCursorTime     = function(self, value)
             self.cursor_time_ms = value
         end,
     }
@@ -88,7 +90,7 @@ end)
 
 t.test("player starts, pauses, resumes, reports progress, and stops a job", function()
     local player, env = loadPlayer()
-    local track = music("a", 10000)
+    local track       = music("a", 10000)
     player:setup({ volume = 65 })
 
     t.eq(player:play(track), nil)

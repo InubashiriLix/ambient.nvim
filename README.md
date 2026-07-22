@@ -125,6 +125,7 @@ return {
             "AmbientPrevious",
             "AmbientPlaylist",
             "AmbientSelectMusic",
+            "AmbientSelectCurrentPlaylistMusic",
             "AmbientStatus",
             "AmbientProgressToggle",
         },
@@ -167,19 +168,20 @@ interval = {
 
 ## Commands
 
-| Command                  | Action                                                        |
-| ------------------------ | ------------------------------------------------------------- |
-| `:AmbientStart`          | Start scheduling and playback.                                |
-| `:AmbientStop`           | Stop scheduling and the current track.                        |
-| `:AmbientPause`          | Pause the current track.                                      |
-| `:AmbientTogglePause`    | Pause, resume, or start playback immediately.                 |
-| `:AmbientToggleStop`     | Toggle between active playback/scheduling and stopped.        |
-| `:AmbientNext`           | Play the next track now.                                      |
-| `:AmbientPrevious`       | Play the previous track from playback history.                |
-| `:AmbientPlaylist`       | Select the active playlist.                                   |
-| `:AmbientSelectMusic`    | Select and immediately play a track from the active playlist. |
-| `:AmbientStatus`         | Show the current scheduler status.                            |
-| `:AmbientProgressToggle` | Show or hide the statusline progress component.               |
+| Command                              | Action                                                                |
+| ------------------------------------ | --------------------------------------------------------------------- |
+| `:AmbientStart`                      | Start scheduling and playback.                                        |
+| `:AmbientStop`                       | Stop scheduling and the current track.                                |
+| `:AmbientPause`                      | Pause the current track.                                              |
+| `:AmbientTogglePause`                | Pause, resume, or start playback immediately.                         |
+| `:AmbientToggleStop`                 | Toggle between active playback/scheduling and stopped.                |
+| `:AmbientNext`                       | Play the next track now.                                              |
+| `:AmbientPrevious`                   | Play the previous track from playback history.                        |
+| `:AmbientPlaylist`                   | Select the active playlist.                                           |
+| `:AmbientSelectMusic`                | Choose a display sort, then select and play a track.                  |
+| `:AmbientSelectCurrentPlaylistMusic` | Select and play from the active playlist's current playback position. |
+| `:AmbientStatus`                     | Show the current scheduler status.                                    |
+| `:AmbientProgressToggle`             | Show or hide the statusline progress component.                       |
 
 ### Migrating From `AmbientToggle`
 
@@ -196,6 +198,10 @@ with the selected playlist.
 
 `:AmbientSelectMusic` first prompts for a display sort order, then prompts for
 a track from the active playlist and plays it immediately.
+
+`:AmbientSelectCurrentPlaylistMusic` keeps the active playlist in playback
+order and moves the selector cursor to the playing track, or to the playlist
+cursor when no track is playing. The selected track is played immediately.
 
 ## Statusline Progress
 
@@ -294,65 +300,65 @@ your own statusline.
 
 Top-level options:
 
-| Option | Meaning |
-| --- | --- |
-| `enable` | Disable the plugin when `false`. |
-| `music_dir` | Single music directory used when `music_dirs` and `playlists` are unset. |
-| `music_dirs` | List of music directories. Overrides `music_dir`. |
-| `playlists` | Explicit playlist definitions. Overrides `music_dir` and `music_dirs`. |
-| `extensions` | File extensions scanned in directory playlists. |
-| `recursive_depth` | Directory scan depth. |
-| `mode` | Playback mode. See [Playback Modes](#playback-modes). |
-| `volume` | `mpv --volume` value, `0` to `100`. |
-| `interval.min_ms` | Minimum silent interval after a track. |
-| `interval.max_ms` | Maximum silent interval after a track. |
-| `show_notifications` | Boolean shorthand for enabling/disabling all notifications. |
-| `show_notification.disable_all` | Disable every notification. |
-| `show_notification.when_finish_setup` | Notify after setup finishes. |
-| `show_notification.when_show_total_music_count` | Notify with the number of discovered tracks. |
-| `show_notification.when_start_playing` | Notify when playback starts. |
-| `show_notification.when_toggle_playing_state` | Notify when playback is toggled. |
+| Option                                          | Meaning                                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------------------ |
+| `enable`                                        | Disable the plugin when `false`.                                         |
+| `music_dir`                                     | Single music directory used when `music_dirs` and `playlists` are unset. |
+| `music_dirs`                                    | List of music directories. Overrides `music_dir`.                        |
+| `playlists`                                     | Explicit playlist definitions. Overrides `music_dir` and `music_dirs`.   |
+| `extensions`                                    | File extensions scanned in directory playlists.                          |
+| `recursive_depth`                               | Directory scan depth.                                                    |
+| `mode`                                          | Playback mode. See [Playback Modes](#playback-modes).                    |
+| `volume`                                        | `mpv --volume` value, `0` to `100`.                                      |
+| `interval.min_ms`                               | Minimum silent interval after a track.                                   |
+| `interval.max_ms`                               | Maximum silent interval after a track.                                   |
+| `show_notifications`                            | Boolean shorthand for enabling/disabling all notifications.              |
+| `show_notification.disable_all`                 | Disable every notification.                                              |
+| `show_notification.when_finish_setup`           | Notify after setup finishes.                                             |
+| `show_notification.when_show_total_music_count` | Notify with the number of discovered tracks.                             |
+| `show_notification.when_start_playing`          | Notify when playback starts.                                             |
+| `show_notification.when_toggle_playing_state`   | Notify when playback is toggled.                                         |
 
 Playlist options:
 
-| Option | Meaning |
-| --- | --- |
-| `abs_path` | Playlist root directory. |
-| `ext` | Extensions for this playlist. |
-| `recursive_depth` | Scan depth for this playlist. |
-| `sort_field` | `name`, `modify_time`, `create_time`, or `random`. |
-| `sort_direction` | `asc` or `desc`. |
+| Option            | Meaning                                            |
+| ----------------- | -------------------------------------------------- |
+| `abs_path`        | Playlist root directory.                           |
+| `ext`             | Extensions for this playlist.                      |
+| `recursive_depth` | Scan depth for this playlist.                      |
+| `sort_field`      | `name`, `modify_time`, `create_time`, or `random`. |
+| `sort_direction`  | `asc` or `desc`.                                   |
 
 Progress options:
 
-| Option | Meaning |
-| --- | --- |
-| `progress.enabled` | Show the statusline component after setup. |
-| `progress.layout.width` | Fixed display width of the ambient component text. |
-| `progress.track.enabled` | Show the current track title. |
-| `progress.track.width` | Maximum width reserved for the current track name. |
-| `progress.track.scroll` | Scroll long track names instead of truncating them. |
-| `progress.track.scroll_separator` | Text between repeated track names while scrolling. |
-| `progress.bar.enabled` | Show the progress bar and percentage. |
-| `progress.bar.style` | Built-in progress bar preset or alias. |
-| `progress.bar.width` | Width of the progress bar body. |
-| `progress.bar.filled` | Filled progress character, one display cell. |
-| `progress.bar.empty` | Empty progress character, one display cell. |
-| `progress.bar.left` | Left wrapper around the progress bar only. |
-| `progress.bar.right` | Right wrapper around the progress bar only. |
-| `progress.time.enabled` | Show elapsed/total time. |
-| `progress.refresh.interval_ms` | Statusline refresh interval in milliseconds. |
-| `progress.component.frame.enabled` | Enable the text frame rendered inside `layout.width`. |
-| `progress.component.frame.left` | Left text frame string. |
-| `progress.component.frame.right` | Right text frame string. |
-| `progress.component.frame.padding` | Text inserted between the frame and the content. |
-| `progress.component.separator.left` | Optional lualine left separator override. Omit `separator` to inherit lualine. |
-| `progress.component.separator.right` | Optional lualine right separator override. Omit `separator` to inherit lualine. |
-| `progress.component.padding` | Optional lualine padding override, as a number or `{ left = N, right = N }`. |
-| `progress.highlight.default.fg` | Default foreground color. |
-| `progress.highlight.default.bg` | Default background color. |
-| `progress.highlight.default.gui` | Default font style: `none`, `bold`, `italic`, `underline`, `undercurl`, or `strikethrough`. |
-| `progress.highlight.states` | Per-state color overrides: `ready`, `playing`, `interval`, `stopped`, `paused`, `next`, `error`. |
+| Option                               | Meaning                                                                                          |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `progress.enabled`                   | Show the statusline component after setup.                                                       |
+| `progress.layout.width`              | Fixed display width of the ambient component text.                                               |
+| `progress.track.enabled`             | Show the current track title.                                                                    |
+| `progress.track.width`               | Maximum width reserved for the current track name.                                               |
+| `progress.track.scroll`              | Scroll long track names instead of truncating them.                                              |
+| `progress.track.scroll_separator`    | Text between repeated track names while scrolling.                                               |
+| `progress.bar.enabled`               | Show the progress bar and percentage.                                                            |
+| `progress.bar.style`                 | Built-in progress bar preset or alias.                                                           |
+| `progress.bar.width`                 | Width of the progress bar body.                                                                  |
+| `progress.bar.filled`                | Filled progress character, one display cell.                                                     |
+| `progress.bar.empty`                 | Empty progress character, one display cell.                                                      |
+| `progress.bar.left`                  | Left wrapper around the progress bar only.                                                       |
+| `progress.bar.right`                 | Right wrapper around the progress bar only.                                                      |
+| `progress.time.enabled`              | Show elapsed/total time.                                                                         |
+| `progress.refresh.interval_ms`       | Statusline refresh interval in milliseconds.                                                     |
+| `progress.component.frame.enabled`   | Enable the text frame rendered inside `layout.width`.                                            |
+| `progress.component.frame.left`      | Left text frame string.                                                                          |
+| `progress.component.frame.right`     | Right text frame string.                                                                         |
+| `progress.component.frame.padding`   | Text inserted between the frame and the content.                                                 |
+| `progress.component.separator.left`  | Optional lualine left separator override. Omit `separator` to inherit lualine.                   |
+| `progress.component.separator.right` | Optional lualine right separator override. Omit `separator` to inherit lualine.                  |
+| `progress.component.padding`         | Optional lualine padding override, as a number or `{ left = N, right = N }`.                     |
+| `progress.highlight.default.fg`      | Default foreground color.                                                                        |
+| `progress.highlight.default.bg`      | Default background color.                                                                        |
+| `progress.highlight.default.gui`     | Default font style: `none`, `bold`, `italic`, `underline`, `undercurl`, or `strikethrough`.      |
+| `progress.highlight.states`          | Per-state color overrides: `ready`, `playing`, `interval`, `stopped`, `paused`, `next`, `error`. |
 
 ## Health Check
 

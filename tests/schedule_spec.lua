@@ -81,10 +81,32 @@ local function loadSchedule(options)
     function selector:getCurrentPlayListValue()
         return self.items[self.current]
     end
+    function selector:getCurrentPlayList()
+        local item = self:getCurrentPlayListValue()
+        if item == nil then
+            return result.err("NO_CURRENT_PLAYLIST")
+        end
+        return result.ok(item)
+    end
     function selector:displayPlayListSelectUi()
         return result.ok(nil)
     end
-    function selector:displayMusicItemSelectUi()
+    function selector:displayMusicItemSelectUi(on_select)
+        self.sorted_music_ui_called = true
+        if options.sorted_music_choice ~= nil then
+            local item = self:getCurrentPlayListValue()
+            item.cursor = options.sorted_music_choice
+            on_select(result.ok(item.musics[item.sorted_indices[item.cursor]]))
+        end
+        return result.ok(nil)
+    end
+    function selector:displayCurrentPlayListMusicItemSelectUi(item, on_select, current_music)
+        self.ui_playlist = item
+        self.ui_current_music = current_music
+        if options.music_choice ~= nil then
+            item.cursor = options.music_choice
+            on_select(result.ok(item.musics[item.sorted_indices[item.cursor]]))
+        end
         return result.ok(nil)
     end
 
@@ -292,6 +314,46 @@ t.test("playlist changes reset navigation history", function()
     t.eq(previous.err, schedule.Error.NO_PREVIOUS_MUSIC)
     t.truthy(schedule:start().ok)
     t.eq(player.played, { "a", "b", "x" })
+end)
+
+t.test("sorted music selector uses the sort-first UI and immediately plays its choice", function()
+    local schedule, player, selector, _, config = loadSchedule({ sorted_music_choice = 2 })
+    schedule:setup(config)
+
+    local displayed = schedule:displayMusicSelectorUi()
+
+    t.truthy(displayed.ok)
+    t.truthy(selector.sorted_music_ui_called)
+    t.eq(player.played, { "b" })
+end)
+
+t.test("current music selector receives the current playlist and immediately plays its choice", function()
+    local schedule, player, selector, _, config = loadSchedule({ music_choice = 2 })
+    schedule:setup(config)
+
+    local selected_music
+    local displayed = schedule:displayCurrentPlaylistMusicSelectorUi(function(selected)
+        t.truthy(selected.ok)
+        selected_music = selected.value
+    end)
+
+    t.truthy(displayed.ok)
+    t.falsy(selector.sorted_music_ui_called)
+    t.eq(selector.ui_playlist, selector:getCurrentPlayListValue())
+    t.eq(selected_music.name, "b")
+    t.eq(player.played, { "b" })
+    t.eq(schedule:getStatus().current_music_name, "b")
+end)
+
+t.test("current music selector forwards the playing track as the initial focus", function()
+    local schedule, _, selector, _, config = loadSchedule()
+    schedule:setup(config)
+    schedule:start()
+
+    local displayed = schedule:displayCurrentPlaylistMusicSelectorUi()
+
+    t.truthy(displayed.ok)
+    t.eq(selector.ui_current_music.name, "a")
 end)
 
 t.test("status has a direct internal snapshot and a compatible public Result", function()
