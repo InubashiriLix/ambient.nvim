@@ -507,9 +507,9 @@ end
 ---@alias AmbientScheduledMusicSelectedCallback fun(result: AmbientResult<AmbientMusic, AmbientPlayListSelectorError|AmbientScheduleError>): nil
 
 ---@param on_select? AmbientScheduledMusicSelectedCallback
----@return AmbientResult<nil, AmbientPlayListSelectorError>
-function M:displayMusicSelectorUi(on_select)
-    return selector:displayMusicItemSelectUi(function(selected)
+---@return AmbientMusicSelectedCallback
+local function playSelectedMusic(on_select)
+    return function(selected)
         if not selected.ok then
             if on_select ~= nil then
                 on_select(result.err(selected.err))
@@ -528,7 +528,28 @@ function M:displayMusicSelectorUi(on_select)
         if on_select ~= nil then
             on_select(result.ok(selected.value))
         end
-    end)
+    end
+end
+
+---@param on_select? AmbientScheduledMusicSelectedCallback
+---@return AmbientResult<nil, AmbientPlayListSelectorError>
+function M:displayMusicSelectorUi(on_select)
+    return selector:displayMusicItemSelectUi(playSelectedMusic(on_select))
+end
+
+---@param on_select? AmbientScheduledMusicSelectedCallback
+---@return AmbientResult<nil, AmbientPlayListSelectorError>
+function M:displayCurrentPlaylistMusicSelectorUi(on_select)
+    local current_playlist = selector:getCurrentPlayList()
+    if not current_playlist.ok then
+        return result.err(current_playlist.err)
+    end
+
+    return selector:displayCurrentPlayListMusicItemSelectUi(
+        current_playlist.value,
+        playSelectedMusic(on_select),
+        M.current_music
+    )
 end
 
 ---@return AmbientResult<nil, AmbientScheduleError>

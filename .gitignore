@@ -2,3 +2,4 @@ nvim.log
 .agents/
 .codex/
 .vscode/
+/.env

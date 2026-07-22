@@ -105,6 +105,7 @@ return {
             "AmbientPrevious",
             "AmbientPlaylist",
             "AmbientSelectMusic",
+            "AmbientSelectCurrentPlaylistMusic",
             "AmbientStatus",
             "AmbientProgressToggle",
         },
@@ -147,19 +148,20 @@ interval = {
 
 ## 命令
 
-| 命令                     | 作用                                |
-| ------------------------ | ----------------------------------- |
-| `:AmbientStart`          | 开始调度并播放。                    |
-| `:AmbientStop`           | 停止调度，并停止当前歌曲。          |
-| `:AmbientPause`          | 暂停当前歌曲。                      |
-| `:AmbientTogglePause`    | 暂停、恢复，或立即开始播放。        |
-| `:AmbientToggleStop`     | 在播放/等待和停止之间切换。         |
-| `:AmbientNext`           | 立刻播放下一首。                    |
-| `:AmbientPrevious`       | 播放历史中的上一首。                |
-| `:AmbientPlaylist`       | 选择当前播放列表。                  |
-| `:AmbientSelectMusic`    | 从当前播放列表选择并立刻播放歌曲。  |
-| `:AmbientStatus`         | 显示当前状态。                      |
-| `:AmbientProgressToggle` | 显示或隐藏状态栏进度组件。          |
+| 命令                                     | 作用                                           |
+| ---------------------------------------- | ---------------------------------------------- |
+| `:AmbientStart`                          | 开始调度并播放。                               |
+| `:AmbientStop`                           | 停止调度，并停止当前歌曲。                     |
+| `:AmbientPause`                          | 暂停当前歌曲。                                 |
+| `:AmbientTogglePause`                    | 暂停、恢复，或立即开始播放。                   |
+| `:AmbientToggleStop`                     | 在播放/等待和停止之间切换。                    |
+| `:AmbientNext`                           | 立刻播放下一首。                               |
+| `:AmbientPrevious`                       | 播放历史中的上一首。                           |
+| `:AmbientPlaylist`                       | 选择当前播放列表。                             |
+| `:AmbientSelectMusic`                    | 先选择显示排序，再选择并立刻播放歌曲。         |
+| `:AmbientSelectCurrentPlaylistMusic`     | 从当前播放位置选择并立刻播放歌曲。             |
+| `:AmbientStatus`                         | 显示当前状态。                                 |
+| `:AmbientProgressToggle`                 | 显示或隐藏状态栏进度组件。                     |
 
 ### 从 `AmbientToggle` 迁移
 
@@ -174,6 +176,10 @@ interval = {
 
 `:AmbientSelectMusic` 会先选择列表的显示排序方式，再从当前播放列表选择歌曲并
 立刻播放。
+
+`:AmbientSelectCurrentPlaylistMusic` 会保持当前播放列表的实际顺序不变，并把
+选择器光标移动到正在播放的歌曲；没有歌曲正在播放时则移动到播放列表光标所指
+的下一首。选中的歌曲会立刻播放。
 
 ## 状态栏进度
 

@@ -1,3 +1,6 @@
+---@author [InubashiriLix](https://github.com/InubashiriLix)
+---@license [DBAD](https://github.com/philsturgeon/dbad)
+
 local result          = require("ambient.result")
 local playlist_module = require("ambient.playlist")
 
@@ -60,6 +63,7 @@ local sort_direction_labels = {
 ---@field getAllPlayListsIdMap fun(self: AmbientPlayListSelector): AmbientResult<AmbientPlayListIdMap, AmbientPlayListSelectorError>
 ---@field displayPlayListSelectUi fun(self: AmbientPlayListSelector, on_select?: AmbientPlayListSelectedCallback): AmbientResult<nil, AmbientPlayListSelectorError>
 ---@field displayMusicItemSelectUi fun(self: AmbientPlayListSelector, on_select?: AmbientMusicSelectedCallback): AmbientResult<nil, AmbientPlayListSelectorError>
+---@field displayCurrentPlayListMusicItemSelectUi fun(self: AmbientPlayListSelector, current_playlist: AmbientPlayList, on_select?: AmbientMusicSelectedCallback, current_music?: AmbientMusic): AmbientResult<nil, AmbientPlayListSelectorError>
 local M = {
     m_state            = "NOT_READY",
     m_current_index    = nil,
@@ -257,6 +261,85 @@ function M:displayPlayListSelectUi(on_select)
     return result.ok(nil)
 end
 
+---@param playlist AmbientPlayList
+---@param music_items AmbientSortedMusicItem[]
+---@param on_select? AmbientMusicSelectedCallback
+---@param kind? string
+---@param initial_index? integer
+---@return AmbientResult<nil, AmbientPlayListSelectorError>
+local function displayMusicChoices(playlist, music_items, on_select, kind, initial_index)
+    if #music_items == 0 then
+        return result.err("EMPTY_PLAYLIST")
+    end
+
+    local select_opts = {
+        prompt = "Select music",
+        kind   = kind or "ambient_music_selector",
+
+        ---@param item AmbientSortedMusicItem
+        format_item = function(item)
+            return string.format("%s", item.music.name)
+        end,
+    }
+
+    if initial_index ~= nil then
+        -- `initial_index` is a provider-neutral hint. Snacks currently needs an
+        -- adapter to move its list cursor while preserving the item order.
+        select_opts.initial_index = initial_index
+        select_opts.snacks        = {
+            on_show = function(picker)
+                picker.list:view(initial_index)
+            end,
+        }
+    end
+
+    vim.ui.select(music_items, select_opts, function(music_choice)
+        ---@cast music_choice AmbientSortedMusicItem?
+        if music_choice == nil then
+            return
+        end
+
+        if playlist.musics[music_choice.source_index] ~= music_choice.music then
+            if on_select ~= nil then
+                on_select(result.err("INVALID_INDEX"))
+            end
+            return
+        end
+
+        ---@type integer?
+        local cursor
+        for position, source_index in ipairs(playlist.sorted_indices) do
+            if source_index == music_choice.source_index then
+                cursor = position
+                break
+            end
+        end
+
+        if cursor == nil then
+            if on_select ~= nil then
+                on_select(result.err("INVALID_INDEX"))
+            end
+            return
+        end
+
+        ---@cast cursor integer
+        local selected = playlist:setCursor(cursor)
+        if not selected.ok then
+            if on_select ~= nil then
+                on_select(result.err("INVALID_INDEX"))
+            end
+            return
+        end
+
+        if on_select ~= nil then
+            on_select(result.ok(music_choice.music))
+        end
+    end)
+
+    return result.ok(nil)
+end
+
+---Prompt for a temporary display sort, then prompt for a music item.
 ---@param on_select? AmbientMusicSelectedCallback
 ---@return AmbientResult<nil, AmbientPlayListSelectorError>
 function M:displayMusicItemSelectUi(on_select)
@@ -309,68 +392,69 @@ function M:displayMusicItemSelectUi(on_select)
 
         local music_items = snapshot.value
         ---@cast music_items AmbientSortedMusicItem[]
-        if #music_items == 0 then
-            if on_select ~= nil then
-                on_select(result.err("EMPTY_PLAYLIST"))
-            end
-            return
+        local displayed   = displayMusicChoices(playlist, music_items, on_select)
+        if not displayed.ok and on_select ~= nil then
+            on_select(result.err(displayed.err))
         end
-
-        local current_source_index = playlist.sorted_indices[playlist.cursor]
-        vim.ui.select(music_items, {
-            prompt = "Select music",
-            kind   = "ambient_music_selector",
-
-            ---@param item AmbientSortedMusicItem
-            format_item = function(item)
-                return string.format("%s", item.music.name)
-            end,
-        }, function(music_choice)
-            ---@cast music_choice AmbientSortedMusicItem?
-            if music_choice == nil then
-                return
-            end
-
-            if playlist.musics[music_choice.source_index] ~= music_choice.music then
-                if on_select ~= nil then
-                    on_select(result.err("INVALID_INDEX"))
-                end
-                return
-            end
-
-            ---@type integer?
-            local cursor
-            for position, source_index in ipairs(playlist.sorted_indices) do
-                if source_index == music_choice.source_index then
-                    cursor = position
-                    break
-                end
-            end
-
-            if cursor == nil then
-                if on_select ~= nil then
-                    on_select(result.err("INVALID_INDEX"))
-                end
-                return
-            end
-
-            ---@cast cursor integer
-            local selected = playlist:setCursor(cursor)
-            if not selected.ok then
-                if on_select ~= nil then
-                    on_select(result.err("INVALID_INDEX"))
-                end
-                return
-            end
-
-            if on_select ~= nil then
-                on_select(result.ok(music_choice.music))
-            end
-        end)
     end)
 
     return result.ok(nil)
 end
 
+---Display the current playlist in playback order and focus its current item.
+---@param current_playlist AmbientPlayList
+---@param on_select? AmbientMusicSelectedCallback
+---@param current_music? AmbientMusic
+---@return AmbientResult<nil, AmbientPlayListSelectorError>
+function M:displayCurrentPlayListMusicItemSelectUi(current_playlist, on_select, current_music)
+    if self.m_state ~= "READY" then
+        return result.err("INVALID_STATE")
+    end
+
+    if current_playlist == nil then
+        return result.err("NO_CURRENT_PLAYLIST")
+    end
+
+    if current_playlist:isEmpty() then
+        return result.err("EMPTY_PLAYLIST")
+    end
+
+    local music_count   = #current_playlist.sorted_indices
+    local initial_index = current_playlist.cursor
+    if type(initial_index) ~= "number"
+        or initial_index % 1 ~= 0
+        or initial_index < 1
+        or initial_index > music_count then
+        return result.err("INVALID_INDEX")
+    end
+
+    ---@type AmbientSortedMusicItem[]
+    local music_items = {}
+    for playback_position = 1, music_count do
+        local source_index = current_playlist.sorted_indices[playback_position]
+        local music_item   = current_playlist.musics[source_index]
+        if music_item == nil then
+            return result.err("INVALID_INDEX")
+        end
+
+        table.insert(music_items, {
+            position     = playback_position,
+            source_index = source_index,
+            music        = music_item,
+        })
+
+        if current_music ~= nil and music_item == current_music then
+            initial_index = playback_position
+        end
+    end
+
+    return displayMusicChoices(
+        current_playlist,
+        music_items,
+        on_select,
+        "ambient_current_playlist_music_selector",
+        initial_index
+    )
+end
 
 return M

@@ -80,6 +80,9 @@ local function loadAmbient(options)
     function schedule:displayMusicSelectorUi()
         return result.ok(nil)
     end
+    function schedule:displayCurrentPlaylistMusicSelectorUi()
+        return result.ok(nil)
+    end
     function schedule:getStatus()
         return self.status_value
     end
@@ -153,6 +156,28 @@ t.test("init registers and routes AmbientPrevious", function()
     end
     commands.AmbientPrevious()
     t.eq(calls, 1)
+end)
+
+t.test("init routes sorted and current-playlist music commands separately", function()
+    local ambient, schedule, commands = loadAmbient()
+    ambient.register_commands()
+    t.truthy(commands.AmbientSelectMusic)
+    t.truthy(commands.AmbientSelectCurrentPlaylistMusic)
+
+    local sorted_calls = 0
+    local current_calls = 0
+    function schedule:displayMusicSelectorUi()
+        sorted_calls = sorted_calls + 1
+        return result.ok(nil)
+    end
+    function schedule:displayCurrentPlaylistMusicSelectorUi()
+        current_calls = current_calls + 1
+        return result.ok(nil)
+    end
+    commands.AmbientSelectMusic()
+    commands.AmbientSelectCurrentPlaylistMusic()
+    t.eq(sorted_calls, 1)
+    t.eq(current_calls, 1)
 end)
 
 t.test("init forwards scheduler failures without re-wrapping them", function()
