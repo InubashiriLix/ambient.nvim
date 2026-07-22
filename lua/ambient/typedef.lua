@@ -10,15 +10,19 @@ local M = {}
 ---@field when_show_total_music_count boolean
 ---@field when_start_playing boolean
 ---@field when_toggle_playing_state boolean
----@field when_toogle_playing_state? boolean Deprecated misspelling kept for existing configs.
+---@field when_toogle_playing_state? boolean Deprecated misspelling accepted as input.
 
 ---@alias AmbientPlayMode "interval_random" | "interval_sequential" | "without_interval_random" | "without_interval_sequential" | "intermittently" | "continuous" | "continously"
 
 ---@class AmbientPlaylistConfig
 ---@field abs_path string
+---@field path? string Deprecated alias for abs_path.
+---@field dir? string Deprecated alias for abs_path.
 ---@field ext string[]
+---@field extensions? string[] Deprecated alias for ext.
 ---@field recursive_depth integer
 ---@field sort_field SortField
+---@field sort_by? SortField Deprecated alias for sort_field.
 ---@field sort_direction SortDirection
 
 ---@alias AmbientProgressCanonicalStyle

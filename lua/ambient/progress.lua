@@ -6,6 +6,7 @@ local progress_styles = require("ambient.progress_styles")
 
 local uv = vim.uv or vim.loop
 
+---@type AmbientProgressConfig
 local default_config = {
     enabled   = false,
     layout    = {
@@ -60,13 +61,13 @@ M.refresh_autocmd_registered = false
 ---@param value string
 ---@return string
 local function sanitize(value)
-    return tostring(value or ""):gsub("[\r\n]", " ")
+    return (tostring(value or ""):gsub("[\r\n]", " "))
 end
 
 ---@param value string
 ---@return string
 local function escapeStatusline(value)
-    return sanitize(value):gsub("%%", "%%%%")
+    return (sanitize(value):gsub("%%", "%%%%"))
 end
 
 ---@param value integer
@@ -273,32 +274,29 @@ local function showTime()
     return M.config.time.enabled == true
 end
 
----@return string
-local function currentStateKey()
-    local status = schedule:get()
-    if not status.ok or status.value.last_error ~= nil then
-        return "error"
-    end
-
-    return tostring(status.value.state or "default"):lower()
-end
-
 local function refreshStatus()
     local ok, lualine = pcall(require, "lualine")
     if ok and type(lualine.refresh) == "function" then
-        pcall(lualine.refresh, {
-            place = { "statusline" },
-        })
+        pcall(function()
+            lualine.refresh({
+                place = { "statusline" },
+            })
+        end)
     end
 
-    pcall(vim.cmd, "redrawstatus!")
+    pcall(function()
+        vim.cmd("redrawstatus!")
+    end)
 end
 
 ---@return table
 local function componentColor()
     local base     = vim.deepcopy(M.config.highlight.default or default_config.highlight.default)
     local colors   = M.config.highlight.states or {}
-    local override = colors[currentStateKey()] or colors.default
+    local status   = schedule:getStatus()
+    local state    = status.last_error ~= nil and "error" or
+    tostring(status.state or "default"):lower()
+    local override = colors[state] or colors.default
     if type(override) == "table" then
         return vim.tbl_deep_extend("force", base, override)
     end
@@ -517,6 +515,7 @@ end
 ---@return AmbientResult<nil, nil>
 function M:setup(config)
     local opts  = config.progress or {}
+    ---@type AmbientProgressStyle
     local style = default_config.bar.style
     if type(opts.bar) == "table" and opts.bar.style ~= nil then
         style = opts.bar.style
@@ -585,12 +584,7 @@ function M:statusline()
         return ""
     end
 
-    local status = schedule:get()
-    if not status.ok then
-        return "ambient error"
-    end
-
-    return renderStatusline(status.value)
+    return renderStatusline(schedule:getStatus())
 end
 
 return M

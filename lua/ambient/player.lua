@@ -1,7 +1,5 @@
 local M = {}
 
-local result = require("ambient.result")
-
 local uv = vim.uv or vim.loop
 
 ---@enum AmbientPlayerError
@@ -41,6 +39,8 @@ M.STATE = {
 ---@field duration_ms integer
 ---@field percentage integer
 
+---@alias AmbientPlayerConfig { volume?: integer, volumn_percentage?: integer }
+
 ---@type AmbientPlayerStateInfo
 M.state = {
     state           = M.STATE.NOT_READY,
@@ -59,31 +59,11 @@ M.events        = {}
 M.stopping_jobs = {}
 
 ---@param err AmbientPlayerError
----@return AmbientErr<AmbientPlayerError>
+---@return AmbientPlayerError
 local function fail(err)
     M.state.state      = M.STATE.ERROR
     M.state.last_error = err
-    return result.err(err)
-end
-
----@return integer
-local function nowMs()
-    return uv.now()
-end
-
----@param job_id integer?
----@return integer?
-local function getJobPid(job_id)
-    if job_id == nil or vim.fn.exists("*jobpid") == 0 then
-        return nil
-    end
-
-    local ok, pid = pcall(vim.fn.jobpid, job_id)
-    if not ok or pid == 0 then
-        return nil
-    end
-
-    return pid
+    return err
 end
 
 ---@param signal string
@@ -102,8 +82,7 @@ local function signalCurrentJob(signal)
     return ok
 end
 
----@param config AmbientConfig
----@return AmbientResult<nil, AmbientPlayerError>
+---@param config AmbientPlayerConfig
 function M:setup(config)
     self.state.volume          = config.volume or config.volumn_percentage or self.state.volume
     self.state.current         = nil
@@ -117,14 +96,13 @@ function M:setup(config)
     self.state.state           = self.STATE.READY
     self.events                = {}
     self.stopping_jobs         = {}
-    return result.ok(nil)
 end
 
 ---@param music AmbientMusic
----@return AmbientResult<nil, AmbientPlayerError>
+---@return AmbientPlayerError?
 function M:play(music)
     if self.state.state == self.STATE.NOT_READY then
-        return result.err(self.Error.NOT_READY)
+        return self.Error.NOT_READY
     end
 
     if vim.fn.executable("mpv") == 0 then
@@ -187,37 +165,43 @@ function M:play(music)
     -- we load the duration asynchronously only when we want to play this music
     music:loadDurationAsync()
 
+    local pid
+    if vim.fn.exists("*jobpid") ~= 0 then
+        local pid_ok, job_pid = pcall(vim.fn.jobpid, job_id)
+        if pid_ok and job_pid ~= 0 then
+            pid = job_pid
+        end
+    end
+
     self.state.current         = music
     self.state.job_id          = job_id
-    self.state.pid             = getJobPid(job_id)
-    self.state.started_at_ms   = nowMs()
+    self.state.pid             = pid
+    self.state.started_at_ms   = uv.now()
     self.state.paused_at_ms    = nil
     self.state.paused_total_ms = 0
     self.state.last_error      = nil
     self.state.state           = self.STATE.PLAYING
 
-    return result.ok(nil)
 end
 
----@return AmbientResult<nil, AmbientPlayerError>
+---@return AmbientPlayerError?
 function M:pause()
     if self.state.state ~= self.STATE.PLAYING then
-        return result.err(self.Error.NOT_READY)
+        return self.Error.NOT_READY
     end
 
     if not signalCurrentJob("sigstop") then
         return fail(self.Error.PAUSE_FAILED)
     end
 
-    self.state.paused_at_ms = nowMs()
+    self.state.paused_at_ms = uv.now()
     self.state.state        = self.STATE.PAUSED
-    return result.ok(nil)
 end
 
----@return AmbientResult<nil, AmbientPlayerError>
+---@return AmbientPlayerError?
 function M:resume()
     if self.state.state ~= self.STATE.PAUSED then
-        return result.err(self.Error.NOT_READY)
+        return self.Error.NOT_READY
     end
 
     if not signalCurrentJob("sigcont") then
@@ -225,15 +209,14 @@ function M:resume()
     end
 
     if self.state.paused_at_ms ~= nil then
-        self.state.paused_total_ms = self.state.paused_total_ms + (nowMs() - self.state.paused_at_ms)
+        self.state.paused_total_ms = self.state.paused_total_ms +
+        (uv.now() - self.state.paused_at_ms)
     end
 
     self.state.paused_at_ms = nil
     self.state.state        = self.STATE.PLAYING
-    return result.ok(nil)
 end
 
----@return AmbientResult<nil, AmbientPlayerError>
 function M:stop()
     if self.state.job_id ~= nil then
         self.state.stopping                   = true
@@ -248,32 +231,28 @@ function M:stop()
     self.state.paused_at_ms    = nil
     self.state.paused_total_ms = 0
     self.state.state           = self.STATE.STOPPED
-    return result.ok(nil)
 end
 
----@return AmbientResult<nil, AmbientPlayerError>
 function M:shutdown()
-    return self:stop()
+    self:stop()
 end
 
 ---@param volume integer
----@return AmbientResult<nil, AmbientPlayerError>
 function M:setVolume(volume)
     self.state.volume = volume
-    return result.ok(nil)
 end
 
----@return AmbientResult<AmbientPlaybackProgress, AmbientPlayerError>
+---@return AmbientPlaybackProgress?
 function M:getProgress()
     if self.state.current == nil or self.state.started_at_ms == nil then
-        return result.err(self.Error.NO_CURRENT)
+        return nil
     end
 
     local elapsed_ms
     if self.state.state == self.STATE.PAUSED and self.state.paused_at_ms ~= nil then
         elapsed_ms = self.state.paused_at_ms - self.state.started_at_ms - self.state.paused_total_ms
     else
-        elapsed_ms = nowMs() - self.state.started_at_ms - self.state.paused_total_ms
+        elapsed_ms = uv.now() - self.state.started_at_ms - self.state.paused_total_ms
     end
 
     elapsed_ms = math.max(0, elapsed_ms)
@@ -287,11 +266,11 @@ function M:getProgress()
 
     self.state.current:setCursorTime(elapsed_ms)
 
-    return result.ok({
+    return {
         time_ms     = elapsed_ms,
         duration_ms = duration_ms,
         percentage  = percentage,
-    })
+    }
 end
 
 ---@return table[]

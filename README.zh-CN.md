@@ -102,6 +102,7 @@ return {
             "AmbientTogglePause",
             "AmbientToggleStop",
             "AmbientNext",
+            "AmbientPrevious",
             "AmbientPlaylist",
             "AmbientSelectMusic",
             "AmbientStatus",
@@ -154,6 +155,7 @@ interval = {
 | `:AmbientTogglePause`    | 暂停、恢复，或立即开始播放。        |
 | `:AmbientToggleStop`     | 在播放/等待和停止之间切换。         |
 | `:AmbientNext`           | 立刻播放下一首。                    |
+| `:AmbientPrevious`       | 播放历史中的上一首。                |
 | `:AmbientPlaylist`       | 选择当前播放列表。                  |
 | `:AmbientSelectMusic`    | 从当前播放列表选择并立刻播放歌曲。  |
 | `:AmbientStatus`         | 显示当前状态。                      |

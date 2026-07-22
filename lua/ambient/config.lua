@@ -35,12 +35,12 @@ local default_config = {
         },
         bar       = {
             enabled = true,
-            style  = progress_styles.default,
-            width  = 10,
-            filled = "⠶",
-            empty  = "⠄",
-            left   = "",
-            right  = "",
+            style   = progress_styles.default,
+            width   = 10,
+            filled  = "⠶",
+            empty   = "⠄",
+            left    = "",
+            right   = "",
         },
         time      = {
             enabled = true,
@@ -76,7 +76,7 @@ local default_config = {
         when_finish_setup           = true,
         when_show_total_music_count = true,
         when_start_playing          = true,
-        when_toogle_playing_state   = true,
+        when_toggle_playing_state   = true,
     },
 }
 
@@ -140,7 +140,7 @@ M.state = {
 ---@param path string
 ---@return string
 local function normalizePath(path)
-    return vim.fn.fnamemodify(vim.fn.expand(path), ":p"):gsub("/$", "")
+    return (vim.fn.fnamemodify(vim.fn.expand(path), ":p"):gsub("/$", ""))
 end
 
 ---@param values string[]
@@ -297,9 +297,10 @@ local function normalize(config)
         config.show_notification.disable_all = not config.show_notifications
     end
 
-    if config.show_notification.when_toggle_playing_state ~= nil then
-        config.show_notification.when_toogle_playing_state = config.show_notification
-            .when_toggle_playing_state
+    if config.show_notification.when_toogle_playing_state ~= nil then
+        config.show_notification.when_toggle_playing_state = config.show_notification
+            .when_toogle_playing_state
+        config.show_notification.when_toogle_playing_state = nil
     end
 
     normalizeProgress(config.progress)
@@ -664,10 +665,10 @@ local function validate(config)
             "boolean",
             "show_notification.when_start_playing must be a boolean",
         },
-        when_toogle_playing_state   = {
-            config.show_notification.when_toogle_playing_state,
+        when_toggle_playing_state   = {
+            config.show_notification.when_toggle_playing_state,
             "boolean",
-            "show_notification.when_toogle_playing_state must be a boolean",
+            "show_notification.when_toggle_playing_state must be a boolean",
         },
     })
 

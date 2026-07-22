@@ -56,6 +56,7 @@ local sort_direction_labels = {
 ---@field addPlayList fun(self: AmbientPlayListSelector, playlist: AmbientPlayList): AmbientResult<nil, AmbientPlayListSelectorError>
 ---@field setCurrentPlaylist fun(self: AmbientPlayListSelector, index: integer): AmbientResult<nil, AmbientPlayListSelectorError>
 ---@field getCurrentPlayList fun(self: AmbientPlayListSelector): AmbientResult<AmbientPlayList, AmbientPlayListSelectorError>
+---@field getCurrentPlayListValue fun(self: AmbientPlayListSelector): AmbientPlayList?
 ---@field getAllPlayListsIdMap fun(self: AmbientPlayListSelector): AmbientResult<AmbientPlayListIdMap, AmbientPlayListSelectorError>
 ---@field displayPlayListSelectUi fun(self: AmbientPlayListSelector, on_select?: AmbientPlayListSelectedCallback): AmbientResult<nil, AmbientPlayListSelectorError>
 ---@field displayMusicItemSelectUi fun(self: AmbientPlayListSelector, on_select?: AmbientMusicSelectedCallback): AmbientResult<nil, AmbientPlayListSelectorError>
@@ -176,6 +177,16 @@ function M:getCurrentPlayList()
     end
 
     return result.ok(playlist)
+end
+
+---Internal read for callers that already enforce the selector's ready invariant.
+---@return AmbientPlayList?
+function M:getCurrentPlayListValue()
+    if self.m_state ~= "READY" or self.m_current_index == nil then
+        return nil
+    end
+
+    return self.m_playlists[self.m_current_index]
 end
 
 ---@return AmbientResult<AmbientPlayListIdMap, AmbientPlayListSelectorError>

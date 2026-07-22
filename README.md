@@ -122,6 +122,7 @@ return {
             "AmbientTogglePause",
             "AmbientToggleStop",
             "AmbientNext",
+            "AmbientPrevious",
             "AmbientPlaylist",
             "AmbientSelectMusic",
             "AmbientStatus",
@@ -174,6 +175,7 @@ interval = {
 | `:AmbientTogglePause`    | Pause, resume, or start playback immediately.                 |
 | `:AmbientToggleStop`     | Toggle between active playback/scheduling and stopped.        |
 | `:AmbientNext`           | Play the next track now.                                      |
+| `:AmbientPrevious`       | Play the previous track from playback history.                |
 | `:AmbientPlaylist`       | Select the active playlist.                                   |
 | `:AmbientSelectMusic`    | Select and immediately play a track from the active playlist. |
 | `:AmbientStatus`         | Show the current scheduler status.                            |

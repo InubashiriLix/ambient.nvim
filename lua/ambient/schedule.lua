@@ -1,5 +1,3 @@
-local M = {}
-
 local result   = require("ambient.result")
 local playlist = require("ambient.playlist")
 local selector = require("ambient.playlist_selector")
@@ -7,34 +5,21 @@ local player   = require("ambient.player")
 
 local uv = vim.uv or vim.loop
 
----@class AmbientPlayerListConfig
----@field abs_path string
----@field ext string[]
----@field recursive_depth integer
----@field sort_field SortField
----@field sort_direction SortDirection
-
 ---@alias AmbientPlayerScheduleMode "interval_random" | "interval_sequential" | "without_interval_random" | "without_interval_sequential" | "intermittently" | "continuous" | "continously"
 
----@class AmbientSchedulerConfig
----@field playlists AmbientPlayerListConfig[]
----@field mode AmbientPlayerScheduleMode
----@field interval AmbientIntervalConfig
----@field volume integer
----@field volumn_percentage integer
-
 ---@enum AmbientScheduleError
-M.Error = {
+local Error = {
     CONFIG_NOT_READY        = "CONFIG_NOT_READY",
     PLAYLIST_CONFIG_ERROR   = "PLAYLIST_CONFIG_ERROR",
     PLAYLIST_SELECTOR_ERROR = "PLAYLIST_SELECTOR_ERROR",
     EMPTY_PLAYLIST          = "EMPTY_PLAYLIST",
     PLAYER_ERROR            = "PLAYER_ERROR",
     TIMER_CREATE_FAILED     = "TIMER_CREATE_FAILED",
+    NO_PREVIOUS_MUSIC       = "NO_PREVIOUS_MUSIC",
 }
 
 ---@enum ScheduleState
-M.State = {
+local State = {
     INIT     = "INIT",
     LOADING  = "LOADING",
     READY    = "READY",
@@ -63,21 +48,45 @@ M.State = {
 ---@field next_due_in_ms? integer
 ---@field last_error? string
 
-M.state                   = M.State.INIT
-M.config                  = nil
-M.playlists               = {}
-M.current_music           = nil
-M.total_music_count       = 0
-M.interval_timer          = nil
-M.event_timer             = nil
-M.next_due_time_ms        = nil
-M.last_error              = nil
-M.random_seed_initialized = false
+---@class AmbientTimer
+---@field start fun(self: AmbientTimer, timeout: integer, repeat_ms: integer, callback: fun())
+---@field stop fun(self: AmbientTimer)
+---@field is_closing fun(self: AmbientTimer): boolean
+---@field close fun(self: AmbientTimer)
+
+---@class AmbientSchedule
+---@field Error table<string, AmbientScheduleError>
+---@field State table<string, ScheduleState>
+---@field state ScheduleState
+---@field config? AmbientConfig
+---@field playlists AmbientPlayList[]
+---@field current_music? AmbientMusic
+---@field current_entry? AmbientPlaybackEntry
+---@field history AmbientPlaybackEntry[] Tracks before current_entry, oldest first.
+---@field future AmbientPlaybackEntry[] Tracks undone by previous(), nearest next track last.
+---@field total_music_count integer
+---@field interval_timer? AmbientTimer
+---@field event_timer? AmbientTimer
+---@field next_due_time_ms? integer
+---@field last_error? string
+---@field random_seed_initialized boolean
+local M = {
+    Error                   = Error,
+    State                   = State,
+    state                   = State.INIT,
+    playlists               = {},
+    history                 = {},
+    future                  = {},
+    total_music_count       = 0,
+    random_seed_initialized = false,
+}
 
 local playNow
 local scheduleNext
 
-local function emitStateChanged()
+---@param state ScheduleState
+local function setState(state)
+    M.state = state
     vim.schedule(function()
         pcall(vim.api.nvim_exec_autocmds, "User", {
             pattern  = "AmbientStateChanged",
@@ -86,25 +95,15 @@ local function emitStateChanged()
     end)
 end
 
----@param state ScheduleState
-local function setState(state)
-    M.state = state
-    emitStateChanged()
-end
-
-local function seedRandom()
-    if M.random_seed_initialized then
-        return
-    end
-
-    math.randomseed(os.time() + (uv.hrtime() % 1000000))
-    math.random()
-    M.random_seed_initialized = true
-end
-
 ---@param timer_name "interval_timer" | "event_timer"
 local function closeTimer(timer_name)
-    local timer = M[timer_name]
+    ---@type AmbientTimer?
+    local timer
+    if timer_name == "interval_timer" then
+        timer = M.interval_timer
+    else
+        timer = M.event_timer
+    end
     if timer ~= nil then
         pcall(function()
             timer:stop()
@@ -113,7 +112,11 @@ local function closeTimer(timer_name)
             end
         end)
     end
-    M[timer_name] = nil
+    if timer_name == "interval_timer" then
+        M.interval_timer = nil
+    else
+        M.event_timer = nil
+    end
 end
 
 local function closeAllTimers()
@@ -126,6 +129,9 @@ local function resetToReadyAfterPlaylistSelection()
     closeAllTimers()
     player:shutdown()
     M.current_music    = nil
+    M.current_entry    = nil
+    M.history          = {}
+    M.future           = {}
     M.next_due_time_ms = nil
     M.last_error       = nil
     setState(M.State.READY)
@@ -141,27 +147,14 @@ local function fail(err, message)
     return result.err(err)
 end
 
----@param mode AmbientPlayerScheduleMode
----@return boolean
-local function isContinuousMode(mode)
-    return mode == "without_interval_random"
-        or mode == "without_interval_sequential"
-        or mode == "continuous"
-        or mode == "continously"
-end
-
----@return integer
-local function nextIntervalMs()
-    local interval = M.config.interval
-    if interval.min_ms == interval.max_ms then
-        return interval.min_ms
-    end
-
-    return math.random(interval.min_ms, interval.max_ms)
-end
+---@class AmbientPlaybackEntry
+---@field music AmbientMusic
+---@field playlist AmbientPlayList
+---@field sorted_indices integer[] Immutable playlist order used when this track was taken.
+---@field cursor integer Playlist cursor immediately after this track was taken.
 
 ---@param item AmbientPlayList
----@return AmbientMusic?
+---@return AmbientPlaybackEntry?
 local function takeMusicFromPlaylist(item)
     if item:isEmpty() then
         return nil
@@ -185,17 +178,12 @@ local function takeMusicFromPlaylist(item)
         item:reset()
     end
 
-    return current
-end
-
----@return AmbientMusic?
-local function takeNextMusic()
-    local selected = selector:getCurrentPlayList()
-    if not selected.ok then
-        return nil
-    end
-
-    return takeMusicFromPlaylist(selected.value)
+    return {
+        music          = current,
+        playlist       = item,
+        sorted_indices = item.sorted_indices,
+        cursor         = item.cursor,
+    }
 end
 
 ---@return AmbientResult<nil, AmbientScheduleError>
@@ -225,10 +213,20 @@ local function startEventTimer()
                         return
                     end
 
-                    if isContinuousMode(M.config.mode) then
+                    local mode = M.config.mode
+                    if mode == "without_interval_random"
+                        or mode == "without_interval_sequential"
+                        or mode == "continuous"
+                        or mode == "continously"
+                    then
                         scheduleNext(0)
                     else
-                        scheduleNext(nextIntervalMs())
+                        local interval = M.config.interval
+                        local delay_ms = interval.min_ms
+                        if interval.min_ms ~= interval.max_ms then
+                            delay_ms = math.random(interval.min_ms, interval.max_ms)
+                        end
+                        scheduleNext(delay_ms)
                     end
                     return
                 end
@@ -282,23 +280,63 @@ scheduleNext = function(delay_ms)
     return result.ok(nil)
 end
 
+---@param direction "next" | "previous"
+---@param discard_future? boolean
 ---@return AmbientResult<nil, AmbientScheduleError>
-playNow = function()
+local function playAdjacent(direction, discard_future)
+    local entry
+    local from_future = false
+    if direction == "previous" then
+        entry = M.history[#M.history]
+        if entry == nil then
+            return result.err(M.Error.NO_PREVIOUS_MUSIC)
+        end
+    else
+        if discard_future then
+            M.future = {}
+        end
+        from_future = #M.future > 0
+        if from_future then
+            entry = M.future[#M.future]
+        else
+            local selected = selector:getCurrentPlayListValue()
+            if selected ~= nil then
+                entry = takeMusicFromPlaylist(selected)
+            end
+        end
+        if entry == nil then
+            return fail(M.Error.EMPTY_PLAYLIST)
+        end
+    end
+
     closeTimer("interval_timer")
     closeTimer("event_timer")
     player:drainEvents()
 
-    local music = takeNextMusic()
-    if music == nil then
-        return fail(M.Error.EMPTY_PLAYLIST)
+    -- Each history entry remembers which playlist position follows its track.
+    entry.playlist.sorted_indices = entry.sorted_indices
+    entry.playlist.cursor         = entry.cursor
+    local player_error            = player:play(entry.music)
+    if player_error ~= nil then
+        return fail(M.Error.PLAYER_ERROR, player_error)
     end
 
-    local played = player:play(music)
-    if not played.ok then
-        return fail(M.Error.PLAYER_ERROR, player:get_error_message())
+    if direction == "previous" then
+        table.remove(M.history)
+        if M.current_entry ~= nil then
+            table.insert(M.future, M.current_entry)
+        end
+    else
+        if from_future then
+            table.remove(M.future)
+        end
+        if M.current_entry ~= nil then
+            table.insert(M.history, M.current_entry)
+        end
     end
 
-    M.current_music    = music
+    M.current_entry    = entry
+    M.current_music    = entry.music
     M.next_due_time_ms = nil
     M.last_error       = nil
     setState(M.State.PLAYING)
@@ -306,16 +344,28 @@ playNow = function()
     return startEventTimer()
 end
 
----@param config AmbientSchedulerConfig
+---@return AmbientResult<nil, AmbientScheduleError>
+playNow = function()
+    return playAdjacent("next")
+end
+
+---@param config AmbientConfig
 ---@return AmbientResult<nil, AmbientScheduleError>
 function M:setup(config)
-    seedRandom()
+    if not self.random_seed_initialized then
+        math.randomseed(os.time() + (uv.hrtime() % 1000000))
+        math.random()
+        self.random_seed_initialized = true
+    end
     closeAllTimers()
     player:shutdown()
 
     self.config            = config
     self.playlists         = {}
     self.current_music     = nil
+    self.current_entry     = nil
+    self.history           = {}
+    self.future            = {}
     self.total_music_count = 0
     self.last_error        = nil
     selector:reset()
@@ -351,10 +401,7 @@ function M:setup(config)
         return fail(self.Error.PLAYLIST_SELECTOR_ERROR, tostring(selector_ready.err))
     end
 
-    local player_ready = player:setup(config)
-    if not player_ready.ok then
-        return fail(self.Error.PLAYER_ERROR, player:get_error_message())
-    end
+    player:setup(config)
 
     setState(self.State.READY)
     return result.ok(nil)
@@ -371,9 +418,9 @@ function M:start()
     end
 
     if self.state == self.State.PAUSED then
-        local resumed = player:resume()
-        if not resumed.ok then
-            return fail(self.Error.PLAYER_ERROR, player:get_error_message())
+        local player_error = player:resume()
+        if player_error ~= nil then
+            return fail(self.Error.PLAYER_ERROR, player_error)
         end
         setState(self.State.PLAYING)
         return startEventTimer()
@@ -398,9 +445,9 @@ function M:pause()
         return result.ok(nil)
     end
 
-    local paused = player:pause()
-    if not paused.ok then
-        return fail(self.Error.PLAYER_ERROR, player:get_error_message())
+    local player_error = player:pause()
+    if player_error ~= nil then
+        return fail(self.Error.PLAYER_ERROR, player_error)
     end
 
     setState(self.State.PAUSED)
@@ -420,6 +467,15 @@ function M:next()
     end
 
     return playNow()
+end
+
+---@return AmbientResult<nil, AmbientScheduleError>
+function M:previous()
+    if self.config == nil or #self.playlists == 0 then
+        return fail(self.Error.CONFIG_NOT_READY)
+    end
+
+    return playAdjacent("previous")
 end
 
 ---@param index integer
@@ -461,7 +517,7 @@ function M:displayMusicSelectorUi(on_select)
             return
         end
 
-        local played = playNow()
+        local played = playAdjacent("next", true)
         if not played.ok then
             if on_select ~= nil then
                 on_select(result.err(played.err))
@@ -501,8 +557,8 @@ function M:togglePauseResumeOrStartNow()
     return self:start()
 end
 
----@return AmbientResult<AmbientScheduleStatus, AmbientScheduleError>
-function M:get()
+---@return AmbientScheduleStatus
+function M:getStatus()
     local next_due_in_ms = nil
     if self.next_due_time_ms ~= nil then
         next_due_in_ms = math.max(0, self.next_due_time_ms - uv.now())
@@ -515,23 +571,23 @@ function M:get()
     local current_playlist_path        = nil
     local current_playlist_music_count = nil
 
-    local current_playlist = selector:getCurrentPlayList()
-    if current_playlist.ok then
-        current_playlist_name        = current_playlist.value.name
-        current_playlist_path        = current_playlist.value.abs_path
-        current_playlist_music_count = #current_playlist.value.musics
+    local current_playlist = selector:getCurrentPlayListValue()
+    if current_playlist ~= nil then
+        current_playlist_name        = current_playlist.name
+        current_playlist_path        = current_playlist.abs_path
+        current_playlist_music_count = #current_playlist.musics
     end
 
     if self.state == self.State.PLAYING then
-        local progress = player:getProgress()
-        if progress.ok then
-            current_time_ms     = progress.value.time_ms
-            duration_ms         = progress.value.duration_ms
-            progress_percentage = progress.value.percentage
+        local playback_progress = player:getProgress()
+        if playback_progress ~= nil then
+            current_time_ms     = playback_progress.time_ms
+            duration_ms         = playback_progress.duration_ms
+            progress_percentage = playback_progress.percentage
         end
     end
 
-    return result.ok({
+    return {
         state                        = self.state,
         mode                         = self.config and self.config.mode or nil,
         playlist_count               = #self.playlists,
@@ -546,7 +602,12 @@ function M:get()
         progress_percentage          = progress_percentage,
         next_due_in_ms               = next_due_in_ms,
         last_error                   = self.last_error,
-    })
+    }
+end
+
+---@return AmbientResult<AmbientScheduleStatus, AmbientScheduleError>
+function M:get()
+    return result.ok(self:getStatus())
 end
 
 ---@return boolean
