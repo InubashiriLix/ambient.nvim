@@ -13,52 +13,16 @@ local function stopPlaybackOnExit()
     pcall(schedule.stop, schedule)
 end
 
-local function registerLifecycleAutocmds()
-    local group = vim.api.nvim_create_augroup("ambient_lifecycle", { clear = true })
-
-    vim.api.nvim_create_autocmd("VimLeavePre", {
-        group    = group,
-        desc     = "Stop ambient.nvim playback before Neovim exits",
-        callback = stopPlaybackOnExit,
-    })
-
-    vim.api.nvim_create_autocmd("UILeave", {
-        group    = group,
-        desc     = "Stop ambient.nvim playback when the last UI disconnects",
-        callback = function()
-            if #vim.api.nvim_list_uis() == 0 then
-                stopPlaybackOnExit()
-            end
-        end,
-    })
-end
-
----@param key? string
----@return boolean
-local function shouldNotify(key)
-    local cfg = config.get()
-    if not cfg.ok then
-        return true
-    end
-
-    local notification = cfg.value.show_notification
-    if notification.disable_all then
-        return false
-    end
-
-    if key ~= nil and notification[key] == false then
-        return false
-    end
-
-    return true
-end
-
 ---@param message string
 ---@param level? integer
 ---@param key? string
 local function notify(message, level, key)
-    if not shouldNotify(key) then
-        return
+    local cfg = config.get()
+    if cfg.ok then
+        local notification = cfg.value.show_notification
+        if notification.disable_all or (key ~= nil and notification[key] == false) then
+            return
+        end
     end
 
     vim.notify(message, level or vim.log.levels.INFO, { title = "ambient.nvim" })
@@ -88,10 +52,16 @@ local function formatStatus(status)
     )
 end
 
----@return AmbientResult<AmbientConfig, any>
-local function ensureReady()
+---@generic T
+---@param action fun(config: AmbientConfig): AmbientResult<T, any>
+---@return AmbientResult<T, any>
+local function withReady(action)
     if not config.is_ready() then
-        return M.setup({})
+        local configured = M.setup()
+        if not configured.ok then
+            return configured
+        end
+        return action(configured.value)
     end
 
     local cfg = config.get()
@@ -102,11 +72,11 @@ local function ensureReady()
     if not schedule:is_ready() then
         local scheduled = schedule:setup(cfg.value)
         if not scheduled.ok then
-            return result.err(scheduled.err)
+            return scheduled
         end
     end
 
-    return cfg
+    return action(cfg.value)
 end
 
 ---@param r AmbientResult<any, any>
@@ -122,17 +92,27 @@ local function reportResult(r, ok_message)
     notify("Ambient error: " .. tostring(r.err), vim.log.levels.ERROR)
 end
 
-local function refreshProgress()
-    progress:refresh()
-end
-
 function M.register_commands()
     if commands_registered then
         return
     end
 
     commands_registered = true
-    registerLifecycleAutocmds()
+    local group         = vim.api.nvim_create_augroup("ambient_lifecycle", { clear = true })
+    vim.api.nvim_create_autocmd("VimLeavePre", {
+        group    = group,
+        desc     = "Stop ambient.nvim playback before Neovim exits",
+        callback = stopPlaybackOnExit,
+    })
+    vim.api.nvim_create_autocmd("UILeave", {
+        group    = group,
+        desc     = "Stop ambient.nvim playback when the last UI disconnects",
+        callback = function()
+            if #vim.api.nvim_list_uis() == 0 then
+                stopPlaybackOnExit()
+            end
+        end,
+    })
 
     vim.api.nvim_create_user_command("AmbientStart", function()
         reportResult(M.start())
@@ -158,6 +138,10 @@ function M.register_commands()
         reportResult(M.next())
     end, { desc = "Play the next ambient.nvim track now", force = true })
 
+    vim.api.nvim_create_user_command("AmbientPrevious", function()
+        reportResult(M.previous())
+    end, { desc = "Play the previous ambient.nvim track now", force = true })
+
     vim.api.nvim_create_user_command("AmbientPlaylist", function()
         reportResult(M.select_playlist_ui())
     end, { desc = "Select the active ambient.nvim playlist", force = true })
@@ -167,12 +151,7 @@ function M.register_commands()
     end, { desc = "Select and play an ambient.nvim track", force = true })
 
     vim.api.nvim_create_user_command("AmbientStatus", function()
-        local status = M.status()
-        if status.ok then
-            notify(formatStatus(status.value))
-        else
-            reportResult(status)
-        end
+        notify(formatStatus(schedule:getStatus()))
     end, { desc = "Show ambient.nvim status", force = true })
 
     vim.api.nvim_create_user_command("AmbientProgressToggle", function()
@@ -199,13 +178,13 @@ function M.setup(opts)
     local scheduled = schedule:setup(cfg.value)
     if not scheduled.ok then
         notify("Schedule setup failed: " .. tostring(scheduled.err), vim.log.levels.ERROR)
-        return result.err(scheduled.err)
+        return scheduled
     end
 
     local progress_ready = progress:setup(cfg.value)
     if not progress_ready.ok then
         notify("Progress setup failed: " .. tostring(progress_ready.err), vim.log.levels.ERROR)
-        return result.err(progress_ready.err)
+        return progress_ready
     end
 
     if cfg.value.show_notification.when_finish_setup then
@@ -213,14 +192,12 @@ function M.setup(opts)
     end
 
     if cfg.value.show_notification.when_show_total_music_count then
-        local status = schedule:get()
-        if status.ok then
-            notify(
-                string.format("Ambient found %d tracks", status.value.total_music_count),
-                vim.log.levels.INFO,
-                "when_show_total_music_count"
-            )
-        end
+        local status = schedule:getStatus()
+        notify(
+            string.format("Ambient found %d tracks", status.total_music_count),
+            vim.log.levels.INFO,
+            "when_show_total_music_count"
+        )
     end
 
     return cfg
@@ -233,22 +210,18 @@ end
 
 ---@return AmbientResult<nil, any>
 function M.start()
-    local ready = ensureReady()
-    if not ready.ok then
-        return result.err(ready.err)
-    end
-
-    if ready.value.enable == false then
-        return result.err("disabled")
-    end
-
-    local started = schedule:start()
-    refreshProgress()
+    local started = withReady(function(cfg)
+        if cfg.enable == false then
+            return result.err("disabled")
+        end
+        return schedule:start()
+    end)
+    progress:refresh()
     if started.ok then
-        local status = schedule:get()
-        if status.ok and status.value.current_music_name ~= nil then
+        local status = schedule:getStatus()
+        if status.current_music_name ~= nil then
             notify(
-                "Ambient playing: " .. status.value.current_music_name,
+                "Ambient playing: " .. status.current_music_name,
                 vim.log.levels.INFO,
                 "when_start_playing"
             )
@@ -261,114 +234,97 @@ end
 ---@return AmbientResult<nil, any>
 function M.stop()
     local stopped = schedule:stop()
-    refreshProgress()
+    progress:refresh()
     return stopped
 end
 
 ---@return AmbientResult<nil, any>
 function M.pause()
     local paused = schedule:pause()
-    refreshProgress()
+    progress:refresh()
     return paused
 end
 
 ---@return AmbientResult<nil, any>
 function M.toggle_pause_resume()
-    local ready = ensureReady()
-    if not ready.ok then
-        return result.err(ready.err)
-    end
-
-    local toggled = schedule:togglePauseResumeOrStartNow()
-    refreshProgress()
+    local toggled = withReady(function()
+        return schedule:togglePauseResumeOrStartNow()
+    end)
+    progress:refresh()
     if toggled.ok then
-        local status = schedule:get()
-        if status.ok then
-            notify(formatStatus(status.value), vim.log.levels.INFO, "when_toogle_playing_state")
-        end
+        notify(formatStatus(schedule:getStatus()), vim.log.levels.INFO, "when_toggle_playing_state")
     end
     return toggled
 end
 
 ---@return AmbientResult<nil, any>
 function M.toggle_start_stop()
-    local ready = ensureReady()
-    if not ready.ok then
-        return result.err(ready.err)
-    end
-
-    local toggled = schedule:toggleStartStop()
-    refreshProgress()
+    local toggled = withReady(function()
+        return schedule:toggleStartStop()
+    end)
+    progress:refresh()
     if toggled.ok then
-        local status = schedule:get()
-        if status.ok then
-            notify(formatStatus(status.value), vim.log.levels.INFO, "when_toogle_playing_state")
-        end
+        notify(formatStatus(schedule:getStatus()), vim.log.levels.INFO, "when_toggle_playing_state")
     end
     return toggled
 end
 
 ---@return AmbientResult<nil, any>
 function M.next()
-    local ready = ensureReady()
-    if not ready.ok then
-        return result.err(ready.err)
-    end
-
-    local nexted = schedule:next()
-    refreshProgress()
+    local nexted = withReady(function()
+        return schedule:next()
+    end)
+    progress:refresh()
     return nexted
+end
+
+---@return AmbientResult<nil, any>
+function M.previous()
+    local previous = withReady(function()
+        return schedule:previous()
+    end)
+    progress:refresh()
+    return previous
 end
 
 ---@param index integer
 ---@return AmbientResult<nil, any>
 function M.select_playlist(index)
-    local ready = ensureReady()
-    if not ready.ok then
-        return result.err(ready.err)
-    end
-
-    local selected = schedule:selectPlaylist(index)
-    if selected.ok then
-        refreshProgress()
-    end
+    local selected = withReady(function()
+        return schedule:selectPlaylist(index)
+    end)
+    progress:refresh()
 
     return selected
 end
 
 ---@return AmbientResult<nil, any>
 function M.select_playlist_ui()
-    local ready = ensureReady()
-    if not ready.ok then
-        return result.err(ready.err)
-    end
+    return withReady(function()
+        return schedule:displayPlaylistSelectorUi(function(selected)
+            if not selected.ok then
+                reportResult(selected)
+                return
+            end
 
-    return schedule:displayPlaylistSelectorUi(function(selected)
-        if not selected.ok then
-            reportResult(selected)
-            return
-        end
-
-        refreshProgress()
-        notify("Ambient playlist: " .. selected.value.name)
+            progress:refresh()
+            notify("Ambient playlist: " .. selected.value.name)
+        end)
     end)
 end
 
 ---@return AmbientResult<nil, any>
 function M.select_music_item()
-    local ready = ensureReady()
-    if not ready.ok then
-        return result.err(ready.err)
-    end
+    return withReady(function()
+        return schedule:displayMusicSelectorUi(function(selected)
+            if not selected.ok then
+                reportResult(selected)
+                return
+            end
 
-    return schedule:displayMusicSelectorUi(function(selected)
-        if not selected.ok then
-            reportResult(selected)
-            return
-        end
-
-        refreshProgress()
-        notify("Ambient music: " .. selected.value.name)
+            progress:refresh()
+            notify("Ambient music: " .. selected.value.name)
+        end)
     end)
 end
 

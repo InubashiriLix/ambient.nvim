@@ -20,7 +20,7 @@ local QueueError = {
 ---@field __index Queue<any>
 local M = {}
 
-M.Error = QueueError
+M.Error   = QueueError
 M.__index = M
 
 ---@generic T
@@ -71,8 +71,8 @@ function M:dequeue()
 
     local item            = self.items[self.head]
     self.items[self.head] = nil
-    self.head            = self:nextPivot(self.head)
-    self.size            = self.size - 1
+    self.head             = self:nextPivot(self.head)
+    self.size             = self.size - 1
 
     return result.ok(item)
 end

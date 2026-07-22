@@ -161,6 +161,7 @@ local function handleIpcData(data)
     end
 end
 
+---@deprecated no use
 ---@param pipe uv.uv_pipe_t
 ---@return AmbientResult<nil, AmbientMpvIpcError>
 local function startReadLoop(pipe)
@@ -280,8 +281,8 @@ function M.send(command)
 
     payload = payload .. "\n"
 
-    local ok, written = pcall(vim.fn.chansend, M.client.chan_id, payload)
-    if not ok or written <= 0 then
+    local wr_ok, written = pcall(vim.fn.chansend, M.client.chan_id, payload)
+    if not wr_ok or written <= 0 then
         return result.err(M.Error.write_failed)
     end
 

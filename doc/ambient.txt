@@ -102,6 +102,7 @@ lazy.nvim example:
         "AmbientTogglePause",
         "AmbientToggleStop",
         "AmbientNext",
+        "AmbientPrevious",
         "AmbientPlaylist",
         "AmbientSelectMusic",
         "AmbientStatus",
@@ -143,6 +144,10 @@ COMMANDS                                                 *ambient-commands*
                                                         *:AmbientNext*
 :AmbientNext
     Play the next track immediately.
+
+                                                        *:AmbientPrevious*
+:AmbientPrevious
+    Play the previous track from playback history.
 
                                                         *:AmbientPlaylist*
 :AmbientPlaylist
@@ -560,6 +565,9 @@ require("ambient").toggle_start_stop()                 *ambient.toggle_start_sto
 
 require("ambient").next()                              *ambient.next()*
     Play the next track immediately.
+
+require("ambient").previous()                          *ambient.previous()*
+    Play the previous track from playback history.
 
 require("ambient").select_playlist(index)              *ambient.select_playlist()*
     Select the active playlist by its one-based index.
