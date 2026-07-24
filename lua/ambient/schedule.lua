@@ -42,11 +42,19 @@ local State = {
 ---@field current_playlist_music_count? integer
 ---@field current_music_name? string
 ---@field current_music_path? string
+---@field current_artist_name? string|string[]
+---@field current_album_name? string
+---@field current_cover_pic? AmbientCoverPicture
 ---@field current_time_ms? integer
 ---@field duration_ms? integer
 ---@field progress_percentage? integer
 ---@field next_due_in_ms? integer
 ---@field last_error? string
+---@field playlist_warnings AmbientPlaylistWarning[]
+
+---@class AmbientPlaylistWarning
+---@field path string
+---@field error AmbientPlayListError
 
 ---@class AmbientTimer
 ---@field start fun(self: AmbientTimer, timeout: integer, repeat_ms: integer, callback: fun())
@@ -69,6 +77,7 @@ local State = {
 ---@field event_timer? AmbientTimer
 ---@field next_due_time_ms? integer
 ---@field last_error? string
+---@field playlist_warnings AmbientPlaylistWarning[]
 ---@field random_seed_initialized boolean
 local M = {
     Error                   = Error,
@@ -78,21 +87,27 @@ local M = {
     history                 = {},
     future                  = {},
     total_music_count       = 0,
+    playlist_warnings       = {},
     random_seed_initialized = false,
 }
 
 local playNow
 local scheduleNext
 
----@param state ScheduleState
-local function setState(state)
-    M.state = state
+---@param pattern string
+local function emitUserEvent(pattern)
     vim.schedule(function()
         pcall(vim.api.nvim_exec_autocmds, "User", {
-            pattern  = "AmbientStateChanged",
+            pattern  = pattern,
             modeline = false,
         })
     end)
+end
+
+---@param state ScheduleState
+local function setState(state)
+    M.state = state
+    emitUserEvent("AmbientStateChanged")
 end
 
 ---@param timer_name "interval_timer" | "event_timer"
@@ -340,6 +355,7 @@ local function playAdjacent(direction, discard_future)
     M.next_due_time_ms = nil
     M.last_error       = nil
     setState(M.State.PLAYING)
+    emitUserEvent("AmbientTrackChanged")
 
     return startEventTimer()
 end
@@ -368,6 +384,7 @@ function M:setup(config)
     self.future            = {}
     self.total_music_count = 0
     self.last_error        = nil
+    self.playlist_warnings = {}
     selector:reset()
 
     for _, playlist_config in ipairs(config.playlists or {}) do
@@ -380,19 +397,28 @@ function M:setup(config)
         )
 
         if not created.ok then
-            return fail(self.Error.PLAYLIST_CONFIG_ERROR, tostring(created.err))
-        end
+            table.insert(self.playlist_warnings, {
+                path  = playlist_config.abs_path,
+                error = created.err,
+            })
+        else
+            local added = selector:addPlayList(created.value)
+            if not added.ok then
+                return fail(self.Error.PLAYLIST_SELECTOR_ERROR, tostring(added.err))
+            end
 
-        local added = selector:addPlayList(created.value)
-        if not added.ok then
-            return fail(self.Error.PLAYLIST_SELECTOR_ERROR, tostring(added.err))
+            table.insert(self.playlists, created.value)
+            self.total_music_count = self.total_music_count + #created.value.musics
         end
-
-        table.insert(self.playlists, created.value)
-        self.total_music_count = self.total_music_count + #created.value.musics
     end
 
-    if #self.playlists == 0 or self.total_music_count == 0 then
+    if #self.playlists == 0 and #self.playlist_warnings > 0 then
+        local details = {}
+        for _, warning in ipairs(self.playlist_warnings) do
+            table.insert(details, warning.path .. ": " .. tostring(warning.error))
+        end
+        return fail(self.Error.PLAYLIST_CONFIG_ERROR, table.concat(details, "; "))
+    elseif #self.playlists == 0 or self.total_music_count == 0 then
         return fail(self.Error.EMPTY_PLAYLIST)
     end
 
@@ -618,11 +644,15 @@ function M:getStatus()
         current_playlist_music_count = current_playlist_music_count,
         current_music_name           = self.current_music and self.current_music.name or nil,
         current_music_path           = self.current_music and self.current_music.abs_path or nil,
+        current_artist_name          = self.current_music and self.current_music.artist_name or nil,
+        current_album_name           = self.current_music and self.current_music.album_name or nil,
+        current_cover_pic            = self.current_music and self.current_music.cover_pic or nil,
         current_time_ms              = current_time_ms,
         duration_ms                  = duration_ms,
         progress_percentage          = progress_percentage,
         next_due_in_ms               = next_due_in_ms,
         last_error                   = self.last_error,
+        playlist_warnings            = self.playlist_warnings,
     }
 end
 

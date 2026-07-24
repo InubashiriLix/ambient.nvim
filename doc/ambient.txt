@@ -10,10 +10,11 @@ CONTENTS                                                   *ambient-contents*
 5. Playback modes                                    |ambient-modes|
 6. Playlists                                         |ambient-playlists|
 7. Statusline progress                               |ambient-progress|
-8. Configuration                                     |ambient-config|
-9. Lua API                                           |ambient-api|
-10. Health check                                     |ambient-health|
-11. Troubleshooting                                  |ambient-troubleshooting|
+8. Current-track popup                               |ambient-track-popup|
+9. Configuration                                     |ambient-config|
+10. Lua API                                          |ambient-api|
+11. Health check                                     |ambient-health|
+12. Troubleshooting                                  |ambient-troubleshooting|
 
 ==============================================================================
 INTRODUCTION                                           *ambient-introduction*
@@ -35,6 +36,8 @@ Required:
 Optional:
 
 - ffprobe       Used to read track duration for better progress reporting.
+- image.nvim    Optional native cover rendering in the current-track popup.
+- img2txt       Optional character-art cover fallback.
 - lualine.nvim  Used for the automatic statusline progress component.
 
 Check your environment with:
@@ -129,6 +132,9 @@ COMMANDS                                                 *ambient-commands*
 
     status
         Show the current scheduler status with |vim.notify()|.
+
+    display
+        Show the current-track popup again.
 
     toggle pause
         Pause while playing, resume while paused, or start playback
@@ -349,6 +355,54 @@ If you do not use lualine, call `require("ambient").statusline()` from your own
 statusline.
 
 ==============================================================================
+CURRENT-TRACK POPUP                                    *ambient-track-popup*
+
+Every track change shows a non-focusable corner popup for three seconds by
+default. The title is shown immediately. Artist, album, and cover information
+refreshes in place when mpv finishes loading it.
+
+>
+  require("ambient").setup({
+    track_popup = {
+      enabled = true,
+      duration_ms = 3000,
+      position = "bottom_right",
+      width = 46,
+      height = 9,
+      margin = { row = 1, col = 1 },
+      border = "rounded",
+      title = " 󰎈 Now Playing ",
+      cover = {
+        enabled = true,
+        width = 14,
+        backend = "auto",
+      },
+    },
+  })
+<
+
+`position` accepts top_left, top_right, bottom_left, and bottom_right.
+`duration_ms = 0` disables automatic closing.
+
+The auto cover backend uses image.nvim when available, falls back to img2txt
+character art, then to a built-in placeholder. Other backend values are
+image.nvim, ascii, and none.
+
+Show the current track manually:
+>
+  :Ambient display
+  :lua require("ambient").show_current_track(3000)
+<
+
+The following |User| events are available for custom interfaces:
+
+AmbientTrackChanged
+    Fired when a new track starts.
+
+AmbientTrackInfoUpdated
+    Fired when artist/album metadata or cover art becomes available.
+
+==============================================================================
 CONFIGURATION                                             *ambient-config*
 
 Default-shaped configuration:
@@ -414,6 +468,21 @@ Default-shaped configuration:
           stopped = { bg = "#6c7086" },
           error = { bg = "#f38ba8" },
         },
+      },
+    },
+    track_popup = {
+      enabled = true,
+      duration_ms = 3000,
+      position = "bottom_right",
+      width = 46,
+      height = 9,
+      margin = { row = 1, col = 1 },
+      border = "rounded",
+      title = " 󰎈 Now Playing ",
+      cover = {
+        enabled = true,
+        width = 14,
+        backend = "auto",
       },
     },
     show_notifications = true,
@@ -525,6 +594,25 @@ progress.highlight.states
     Per-state lualine color overrides. Supported keys include default, ready,
     playing, interval, stopped, paused, next, and error.
 
+track_popup.enabled
+    Whether track changes show the current-track popup.
+
+track_popup.duration_ms
+    Popup lifetime in milliseconds. Zero keeps it open until it is closed or
+    replaced.
+
+track_popup.position
+    One of top_left, top_right, bottom_left, or bottom_right.
+
+track_popup.width, track_popup.height
+    Preferred popup dimensions in terminal cells. They shrink on small UIs.
+
+track_popup.margin
+    Row and column distance from the selected corner.
+
+track_popup.cover.backend
+    One of auto, image.nvim, ascii, or none. See |ambient-track-popup|.
+
 show_notifications
     Boolean shorthand. Set to false to disable all notifications.
 
@@ -545,6 +633,10 @@ require("ambient").stop()                              *ambient.stop()*
 
 require("ambient").pause()                             *ambient.pause()*
     Pause the current track.
+
+require("ambient").show_current_track(duration_ms)     *ambient.show_current_track()*
+    Show the current-track popup. The optional duration overrides the
+    configured duration for this rendering.
 
 require("ambient").toggle_pause_resume()               *ambient.toggle_pause_resume()*
     Pause while playing, resume while paused, or start playback immediately.

@@ -27,6 +27,15 @@ function M.check()
 
     checkExecutable("mpv", true)
     checkExecutable("ffprobe", false)
+    -- check 3rd/image.nvim's status
+    local ok_img, err_img = pcall(require, "image")
+    if ok_img then
+        ok(
+            "3rd/image.nvim is installed, providing cover display (if you have set image.nvim's config correctly and make sure your terminal simulator support image.nvim's protocol)")
+    else
+        warn("3rd/image.nvim is not installed, install it if you want better track-popup experience")
+    end
+
 
     local cfg = config.get()
     if not cfg.ok then

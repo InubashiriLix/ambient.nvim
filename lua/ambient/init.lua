@@ -2,15 +2,69 @@ local M = {}
 
 require("ambient.typedef")
 
-local result   = require("ambient.result")
-local config   = require("ambient.config")
-local progress = require("ambient.progress")
-local schedule = require("ambient.schedule")
+local result      = require("ambient.result")
+local config      = require("ambient.config")
+local progress    = require("ambient.progress")
+local schedule    = require("ambient.schedule")
+local track_popup = require("ambient.track_popup")
 
 local commands_registered = false
+local popup_events_registered = false
 
 local function stopPlaybackOnExit()
+    track_popup:close("exit")
     pcall(schedule.stop, schedule)
+end
+
+local function registerPopupEvents()
+    if popup_events_registered then
+        return
+    end
+
+    popup_events_registered = true
+    local group             = vim.api.nvim_create_augroup("ambient_track_popup", { clear = true })
+
+    vim.api.nvim_create_autocmd("User", {
+        group    = group,
+        pattern  = "AmbientTrackChanged",
+        desc     = "Show the ambient.nvim track popup",
+        callback = function()
+            if schedule.current_music ~= nil then
+                track_popup:show(schedule.current_music)
+            end
+        end,
+    })
+
+    vim.api.nvim_create_autocmd("User", {
+        group    = group,
+        pattern  = "AmbientTrackInfoUpdated",
+        desc     = "Refresh ambient.nvim track metadata and cover art",
+        callback = function()
+            local item = schedule.current_music
+            if item == nil
+                or not track_popup:is_open()
+                or track_popup.current_key ~= (item.abs_path or item.name)
+            then
+                return
+            end
+
+            local updated = track_popup:update(item)
+            if updated.ok then
+                track_popup:refresh()
+            end
+        end,
+    })
+
+    vim.api.nvim_create_autocmd("User", {
+        group    = group,
+        pattern  = "AmbientStateChanged",
+        desc     = "Close the ambient.nvim track popup when playback ends",
+        callback = function()
+            if schedule.current_music == nil then
+                track_popup:close("playback-ended")
+            end
+        end,
+    })
 end
 
 ---@param message string
@@ -151,6 +205,11 @@ function M.register_commands()
                     notify(formatStatus(schedule:getStatus()))
                 end,
             },
+            display = {
+                run = function()
+                    reportResult(M.show_current_track())
+                end,
+            },
             toggle = {
                 children = {
                     pause = {
@@ -272,8 +331,20 @@ function M.setup(opts)
 
     local scheduled = schedule:setup(cfg.value)
     if not scheduled.ok then
-        notify("Schedule setup failed: " .. tostring(scheduled.err), vim.log.levels.ERROR)
+        local detail  = schedule:get_error_message()
+        local message = "Schedule setup failed: " .. tostring(scheduled.err)
+        if detail ~= nil and detail ~= tostring(scheduled.err) then
+            message = message .. " (" .. detail .. ")"
+        end
+        notify(message, vim.log.levels.ERROR)
         return scheduled
+    end
+
+    for _, warning in ipairs(schedule:getStatus().playlist_warnings or {}) do
+        notify(
+            string.format("Skipped playlist %s: %s", warning.path, warning.error),
+            vim.log.levels.WARN
+        )
     end
 
     local progress_ready = progress:setup(cfg.value)
@@ -281,6 +352,13 @@ function M.setup(opts)
         notify("Progress setup failed: " .. tostring(progress_ready.err), vim.log.levels.ERROR)
         return progress_ready
     end
+
+    local popup_ready = track_popup:setup(cfg.value.track_popup)
+    if not popup_ready.ok then
+        notify("Track popup setup failed: " .. tostring(popup_ready.err), vim.log.levels.ERROR)
+        return popup_ready
+    end
+    registerPopupEvents()
 
     if cfg.value.show_notification.when_finish_setup then
         notify("Ambient setup finished", vim.log.levels.INFO, "when_finish_setup")
@@ -380,6 +458,16 @@ function M.previous()
     end)
     progress:refresh()
     return previous
+end
+
+---@param duration_ms? integer
+---@return AmbientResult<nil, any>
+function M.show_current_track(duration_ms)
+    if schedule.current_music == nil then
+        return result.err("NO_CURRENT_MUSIC")
+    end
+
+    return track_popup:show(schedule.current_music, duration_ms)
 end
 
 ---@param index integer

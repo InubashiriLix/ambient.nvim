@@ -65,6 +65,48 @@ local default_config = {
             states  = {},
         },
     },
+    track_popup        = {
+        enabled     = true,
+        duration_ms = 3000,
+        position    = "bottom_right",
+        width       = 46,
+        height      = 9,
+        margin      = {
+            row = 1,
+            col = 1,
+        },
+        border      = "rounded",
+        title       = " 󰎈 Now Playing ",
+        cover       = {
+            enabled = true,
+            width   = 14,
+            backend = "auto",
+        },
+        highlight   = {
+            normal = {
+                fg = "#cdd6f4",
+                bg = "#181825",
+            },
+            border = {
+                fg = "#89b4fa",
+                bg = "#181825",
+            },
+            title = {
+                fg   = "#f5c2e7",
+                bg   = "#181825",
+                bold = true,
+            },
+            label = {
+                fg = "#89b4fa",
+                bg = "#181825",
+            },
+            muted = {
+                fg     = "#7f849c",
+                bg     = "#181825",
+                italic = true,
+            },
+        },
+    },
 
     interval = {
         min_ms = 1000 * 60 * 2, -- 2 minutes
@@ -100,6 +142,20 @@ local valid_sort_fields = {
 local valid_sort_directions = {
     [playlist.SortDirection.asc]  = true,
     [playlist.SortDirection.desc] = true,
+}
+
+local valid_display_positions = {
+    top_left     = true,
+    top_right    = true,
+    bottom_left  = true,
+    bottom_right = true,
+}
+
+local valid_cover_backends = {
+    auto          = true,
+    ["image.nvim"] = true,
+    ascii         = true,
+    none          = true,
 }
 
 local deprecated_progress_fields = {
@@ -371,6 +427,11 @@ local function validate(config)
         },
         interval          = { config.interval, "table", "interval must be a table" },
         progress          = { config.progress, "table", "progress must be a table" },
+        track_popup       = {
+            config.track_popup,
+            "table",
+            "track_popup must be a table",
+        },
         show_notification = {
             config.show_notification,
             "table",
@@ -574,6 +635,93 @@ local function validate(config)
         },
     })
 
+    vim.validate({
+        track_popup_enabled       = {
+            config.track_popup.enabled,
+            "boolean",
+            "track_popup.enabled must be a boolean",
+        },
+        track_popup_duration_ms   = {
+            config.track_popup.duration_ms,
+            "number",
+            "track_popup.duration_ms must be a number",
+        },
+        track_popup_position      = {
+            config.track_popup.position,
+            function(value)
+                return valid_display_positions[value] == true
+            end,
+            "track_popup.position must be top_left, top_right, bottom_left, or bottom_right",
+        },
+        track_popup_width         = {
+            config.track_popup.width,
+            "number",
+            "track_popup.width must be a number",
+        },
+        track_popup_height        = {
+            config.track_popup.height,
+            "number",
+            "track_popup.height must be a number",
+        },
+        track_popup_margin        = {
+            config.track_popup.margin,
+            "table",
+            "track_popup.margin must be a table",
+        },
+        track_popup_margin_row    = {
+            config.track_popup.margin.row,
+            "number",
+            "track_popup.margin.row must be a number",
+        },
+        track_popup_margin_col    = {
+            config.track_popup.margin.col,
+            "number",
+            "track_popup.margin.col must be a number",
+        },
+        track_popup_title         = {
+            config.track_popup.title,
+            "string",
+            "track_popup.title must be a string",
+        },
+        track_popup_cover         = {
+            config.track_popup.cover,
+            "table",
+            "track_popup.cover must be a table",
+        },
+        track_popup_cover_enabled = {
+            config.track_popup.cover.enabled,
+            "boolean",
+            "track_popup.cover.enabled must be a boolean",
+        },
+        track_popup_cover_width   = {
+            config.track_popup.cover.width,
+            "number",
+            "track_popup.cover.width must be a number",
+        },
+        track_popup_cover_backend = {
+            config.track_popup.cover.backend,
+            function(value)
+                return valid_cover_backends[value] == true
+            end,
+            "track_popup.cover.backend must be auto, image.nvim, ascii, or none",
+        },
+        track_popup_highlight     = {
+            config.track_popup.highlight,
+            "table",
+            "track_popup.highlight must be a table",
+        },
+    })
+
+    for _, name in ipairs({ "normal", "border", "title", "label", "muted" }) do
+        vim.validate({
+            ["track_popup.highlight." .. name] = {
+                config.track_popup.highlight[name],
+                "table",
+                "track_popup.highlight." .. name .. " must be a table",
+            },
+        })
+    end
+
     if config.progress.component.separator ~= nil then
         vim.validate({
             progress_component_separator       = {
@@ -736,6 +884,48 @@ local function validate(config)
             end,
             "progress.refresh.interval_ms must be at least 100",
         },
+        track_popup_duration_ms   = {
+            config.track_popup.duration_ms,
+            function(value)
+                return value >= 0
+            end,
+            "track_popup.duration_ms must be zero or greater",
+        },
+        track_popup_width         = {
+            config.track_popup.width,
+            function(value)
+                return value >= 24 and value <= 100
+            end,
+            "track_popup.width must be between 24 and 100",
+        },
+        track_popup_height        = {
+            config.track_popup.height,
+            function(value)
+                return value >= 5 and value <= 20
+            end,
+            "track_popup.height must be between 5 and 20",
+        },
+        track_popup_margin_row    = {
+            config.track_popup.margin.row,
+            function(value)
+                return value >= 0
+            end,
+            "track_popup.margin.row must be zero or greater",
+        },
+        track_popup_margin_col    = {
+            config.track_popup.margin.col,
+            function(value)
+                return value >= 0
+            end,
+            "track_popup.margin.col must be zero or greater",
+        },
+        track_popup_cover_width   = {
+            config.track_popup.cover.width,
+            function(value)
+                return value >= 6 and value <= 40
+            end,
+            "track_popup.cover.width must be between 6 and 40",
+        },
     })
 
     if type(config.playlists) == "table" then
@@ -775,12 +965,17 @@ local function validate(config)
     end
 end
 
+---@return AmbientConfig
+function M.defaults()
+    return vim.deepcopy(default_config)
+end
+
 ---@param opts? AmbientConfig
 ---@return AmbientResult<AmbientConfig, AmbientConfigError>
 function M.setup(opts)
     local ok, err = pcall(function()
         local raw_opts        = opts or {}
-        local base            = vim.deepcopy(default_config)
+        local base            = M.defaults()
         local requested_style = base.progress.bar.style
         if type(raw_opts.progress) == "table" then
             if type(raw_opts.progress.bar) == "table" and raw_opts.progress.bar.style ~= nil then
@@ -809,6 +1004,7 @@ function M.setup(opts)
     M.state.err_msg = nil
     return result.ok(M.state.values)
 end
+
 ---@return AmbientResult<AmbientConfig, AmbientConfigError>
 function M.get()
     if not M.state.ready then
