@@ -6,6 +6,7 @@ local function loadAmbient(options)
     local commands = {}
     local command_options = {}
     local notifications = {}
+    local autocmds = {}
     local refresh_count = 0
     local cfg = options.config
         or {
@@ -42,6 +43,7 @@ local function loadAmbient(options)
             playlist_count = 1,
             total_music_count = 3,
             current_music_name = "a",
+            playlist_warnings = options.playlist_warnings or {},
         },
     }
     function schedule:is_ready()
@@ -90,6 +92,9 @@ local function loadAmbient(options)
     function schedule:get()
         return result.ok(self.status_value)
     end
+    function schedule:get_error_message()
+        return options.schedule_last_error
+    end
 
     local progress = {}
     function progress:setup()
@@ -111,6 +116,41 @@ local function loadAmbient(options)
         return "statusline"
     end
 
+    local display = {
+        current_key = nil,
+        shown = {},
+        open = false,
+        refresh_count = 0,
+    }
+    function display:setup(display_config)
+        self.config = display_config
+        return result.ok(nil)
+    end
+    function display:show(item, duration_ms)
+        table.insert(self.shown, {
+            item = item,
+            duration_ms = duration_ms,
+        })
+        self.current_key = item.abs_path or item.name
+        self.open = true
+        return result.ok(nil)
+    end
+    function display:update(item)
+        self.current_key = item.abs_path or item.name
+        return result.ok(nil)
+    end
+    function display:refresh()
+        self.refresh_count = self.refresh_count + 1
+        return result.ok(nil)
+    end
+    function display:close()
+        self.open = false
+        return result.ok(nil)
+    end
+    function display:is_open()
+        return self.open
+    end
+
     _G.vim = {
         g = {},
         log = { levels = { INFO = 1, ERROR = 2 } },
@@ -121,7 +161,12 @@ local function loadAmbient(options)
             nvim_create_augroup = function()
                 return 1
             end,
-            nvim_create_autocmd = function() end,
+            nvim_create_autocmd = function(event, autocmd)
+                table.insert(autocmds, {
+                    event = event,
+                    value = autocmd,
+                })
+            end,
             nvim_list_uis = function()
                 return { {} }
             end,
@@ -135,6 +180,7 @@ local function loadAmbient(options)
     package.loaded["ambient.config"] = config
     package.loaded["ambient.schedule"] = schedule
     package.loaded["ambient.progress"] = progress
+    package.loaded["ambient.track_popup"] = display
     t.clearModules("ambient.init")
     local ambient = require("ambient.init")
     return ambient,
@@ -144,7 +190,9 @@ local function loadAmbient(options)
         function()
             return refresh_count
         end,
-        command_options
+        command_options,
+        display,
+        autocmds
 end
 
 t.test("init replaces flat commands with the Ambient command tree", function()
@@ -161,6 +209,33 @@ t.test("init replaces flat commands with the Ambient command tree", function()
     end
     commands.Ambient({ args = "previous" })
     t.eq(calls, 1)
+end)
+
+t.test("track events show and refresh the popup", function()
+    local ambient, schedule, _, _, _, _, display, autocmds = loadAmbient()
+    t.truthy(ambient.setup().ok)
+
+    local callbacks = {}
+    for _, autocmd in ipairs(autocmds) do
+        if autocmd.event == "User" and type(autocmd.value.pattern) == "string" then
+            callbacks[autocmd.value.pattern] = autocmd.value.callback
+        end
+    end
+
+    schedule.current_music = {
+        name = "Night Drive",
+        abs_path = "/music/night-drive.mp3",
+    }
+    callbacks.AmbientTrackChanged()
+    t.eq(#display.shown, 1)
+
+    schedule.current_music.artist_name = "Ambient Unit"
+    callbacks.AmbientTrackInfoUpdated()
+    t.eq(display.refresh_count, 1)
+
+    schedule.current_music = nil
+    callbacks.AmbientStateChanged()
+    t.falsy(display.open)
 end)
 
 t.test("init routes sorted and current-playlist music commands separately", function()
@@ -189,6 +264,7 @@ t.test("Ambient command completion follows the command tree", function()
     local complete = command_options.Ambient.complete
 
     t.eq(complete("", "Ambient ", 8), {
+        "display",
         "next",
         "pause",
         "previous",
@@ -205,6 +281,24 @@ t.test("Ambient command completion follows the command tree", function()
     t.eq(complete("", "Ambient progress ", 17), { "toggle" })
     t.eq(complete("", "Ambient status ", 15), {})
     t.truthy(commands.Ambient)
+end)
+
+t.test("init can show the current track on demand", function()
+    local ambient, schedule, _, _, _, _, display = loadAmbient()
+    schedule.current_music = {
+        name = "Night Drive",
+        abs_path = "/music/night-drive.mp3",
+    }
+
+    local shown = ambient.show_current_track(1250)
+    t.truthy(shown.ok)
+    t.eq(display.shown[1], {
+        item = schedule.current_music,
+        duration_ms = 1250,
+    })
+
+    schedule.current_music = nil
+    t.eq(ambient.show_current_track().err, "NO_CURRENT_MUSIC")
 end)
 
 t.test("Ambient command reports incomplete and unknown paths", function()
@@ -229,6 +323,40 @@ t.test("init forwards scheduler failures without re-wrapping them", function()
     local ambient = loadAmbient({ previous_result = scheduler_error })
     local returned = ambient.previous()
     t.eq(returned, scheduler_error)
+end)
+
+t.test("setup reports skipped playlists and detailed fatal playlist errors", function()
+    local cfg = {
+        enable = true,
+        show_notification = {
+            disable_all = false,
+            when_finish_setup = false,
+            when_show_total_music_count = false,
+        },
+    }
+    local ambient, _, _, notifications = loadAmbient({
+        config = cfg,
+        playlist_warnings = {
+            {
+                path = "/missing",
+                error = "PATH_NOT_EXIST",
+            },
+        },
+    })
+
+    t.truthy(ambient.setup(cfg).ok)
+    t.truthy(notifications[1]:match("Skipped playlist /missing: PATH_NOT_EXIST"))
+
+    ambient, _, _, notifications = loadAmbient({
+        config = cfg,
+        schedule_setup_result = result.err("PLAYLIST_CONFIG_ERROR"),
+        schedule_last_error = "/missing: PATH_NOT_EXIST",
+    })
+
+    local configured = ambient.setup(cfg)
+    t.falsy(configured.ok)
+    t.truthy(notifications[1]:match("PLAYLIST_CONFIG_ERROR"))
+    t.truthy(notifications[1]:match("/missing: PATH_NOT_EXIST"))
 end)
 
 t.test("ready orchestration is shared by next and previous and refreshes once", function()

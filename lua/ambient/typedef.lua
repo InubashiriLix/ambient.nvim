@@ -163,6 +163,7 @@ local M = {}
 ---@field volume? integer
 ---@field volumn_percentage? integer
 ---@field progress AmbientProgressConfig
+---@field track_popup AmbientTrackPopupConfig
 ---@field interval AmbientIntervalConfig
 ---@field show_notifications? boolean
 ---@field show_notification AmbientShowNotificationConfig

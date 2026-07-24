@@ -3,6 +3,14 @@ local M = {}
 
 local result = require("ambient.result")
 
+---@class AmbientCoverPicture
+---@field path string
+---@field mime string
+---@field width integer|nil
+---@field height integer|nil
+---@field source "embedded"|"external"
+---@field temporary boolean
+
 ---@class AmbientMusic
 ---@field name string
 ---@field abs_path string
@@ -12,9 +20,13 @@ local result = require("ambient.result")
 ---@field duration_ms integer
 ---@field cursor_time_ms integer
 ---@field proc_percentage integer
+---@field album_name string|nil
+---@field cover_pic AmbientCoverPicture|nil
+---@field artist_name string[]|string|nil
 ---@field cached_buf string|nil
 ---@field state AmbientMusicState
 ---
+---@field releaseCoverPic fun(self: AmbientMusic): AmbientResult<nil, AmbientMusicError>
 ---@field preload fun(self: AmbientMusic): AmbientResult<nil, AmbientMusicError>
 ---@field releasePreload fun(self: AmbientMusic): AmbientResult<nil, AmbientMusicError>
 ---
@@ -74,8 +86,30 @@ function M:new(abs_path)
         duration_ms     = 0,
         cursor_time_ms  = 0,
         proc_percentage = 0,
+        album_name      = nil,
+        cover_pic       = nil,
+        artist_name     = nil,
         cached_buf      = nil,
         state           = self.State.NOT_READY,
+
+        releaseCoverPic = function(self)
+            local cover    = self.cover_pic
+            self.cover_pic = nil
+
+            if cover ~= nil
+                and cover.temporary
+                and type(cover.path) == "string"
+                and cover.path ~= ""
+            then
+                if vim.fn ~= nil and vim.fn.delete ~= nil then
+                    pcall(vim.fn.delete, cover.path)
+                elseif vim.uv ~= nil and vim.uv.fs_unlink ~= nil then
+                    pcall(vim.uv.fs_unlink, cover.path)
+                end
+            end
+
+            return result.ok(nil)
+        end,
 
         -- prelaod and release cache mem
         ---@deprecated this function is never used. and it may provide better load performace with cost of brain cells (lots of status to deal)

@@ -11,6 +11,7 @@ ambient-playlists	ambient.txt	/*ambient-playlists*
 ambient-progress	ambient.txt	/*ambient-progress*
 ambient-requirements	ambient.txt	/*ambient-requirements*
 ambient-setup	ambient.txt	/*ambient-setup*
+ambient-track-popup	ambient.txt	/*ambient-track-popup*
 ambient-troubleshooting	ambient.txt	/*ambient-troubleshooting*
 ambient.hide_progress()	ambient.txt	/*ambient.hide_progress()*
 ambient.next()	ambient.txt	/*ambient.next()*
@@ -22,6 +23,7 @@ ambient.select_music_item()	ambient.txt	/*ambient.select_music_item()*
 ambient.select_playlist()	ambient.txt	/*ambient.select_playlist()*
 ambient.select_playlist_ui()	ambient.txt	/*ambient.select_playlist_ui()*
 ambient.setup()	ambient.txt	/*ambient.setup()*
+ambient.show_current_track()	ambient.txt	/*ambient.show_current_track()*
 ambient.show_progress()	ambient.txt	/*ambient.show_progress()*
 ambient.start()	ambient.txt	/*ambient.start()*
 ambient.status()	ambient.txt	/*ambient.status()*

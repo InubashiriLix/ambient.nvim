@@ -63,6 +63,7 @@ M.Config = {
 ---@field request_id integer
 ---@field recv_buf string
 ---@field pending table<integer, AmbientMpvIpcReply>
+---@field callbacks table<integer, fun(reply: AmbientResult<AmbientMpvIpcReply, AmbientMpvIpcError>)>
 ---@field events table[]
 
 ---@type AmbientMpvIpcClient
@@ -75,6 +76,7 @@ M.client = {
     request_id  = 0,
     recv_buf    = "",
     pending     = {},
+    callbacks   = {},
     events      = {},
 }
 
@@ -90,8 +92,12 @@ M.Command = {
     start_cmd = {
         args = {
             "mpv",
+            "--no-config",
             "--idle=yes",
-            "--no-video",
+            "--audio-display=embedded-first",
+            "--cover-art-auto=exact",
+            "--vo=null",
+            "--screenshot-sw=yes",
             "--force-window=no",
             "--input-terminal=no",
             "--terminal=no",
@@ -132,6 +138,19 @@ local function handleIpcLine(line)
 
     -- if request_id is explicitly set, then this is a reply to a request.
     if decoded.request_id ~= nil then
+        local callback = M.client.callbacks[decoded.request_id]
+        if callback ~= nil then
+            M.client.callbacks[decoded.request_id] = nil
+            vim.schedule(function()
+                if decoded.error ~= "success" then
+                    callback(result.err(M.Error.mpv_command_failed))
+                else
+                    callback(result.ok(decoded))
+                end
+            end)
+            return result.ok(decoded)
+        end
+
         M.client.pending[decoded.request_id] = decoded
         return result.ok(decoded)
     end
@@ -209,9 +228,10 @@ function M.start()
     M.client.state    = M.State.starting
     local socket_path = makeSocketPath()
     pcall(vim.fn.delete, socket_path)
-    M.client.pending  = {}
-    M.client.events   = {}
-    M.client.recv_buf = ""
+    M.client.pending   = {}
+    M.client.callbacks = {}
+    M.client.events    = {}
+    M.client.recv_buf  = ""
 
     ---@type table<string>
     local args = M.Command.start_cmd.make(socket_path)
@@ -220,10 +240,16 @@ function M.start()
     local job_id = vim.fn.jobstart(args, {
         detach  = false,
         on_exit = function(_, _) -- on exit callback
-            M.client.state   = M.State.closed
-            M.client.job_id  = nil
-            M.client.pipe    = nil
-            M.client.chan_id = nil
+            local unexpectedly_closed = M.client.state == M.State.started
+                or M.client.state == M.State.starting
+            M.client.state            = M.State.closed
+            M.client.job_id           = nil
+            M.client.pipe             = nil
+            M.client.chan_id          = nil
+            M.client.callbacks        = {}
+            if unexpectedly_closed then
+                table.insert(M.client.events, { event = "shutdown" })
+            end
         end,
     })
 
@@ -264,8 +290,9 @@ function M.start()
 end
 
 ---@param command any[]
+---@param callback? fun(reply: AmbientResult<AmbientMpvIpcReply, AmbientMpvIpcError>)
 ---@return AmbientResult<integer, AmbientMpvIpcError>
-function M.send(command)
+function M.send(command, callback)
     if M.client.state ~= M.State.started then
         return result.err(M.Error.ipc_invalid_state)
     end
@@ -281,12 +308,24 @@ function M.send(command)
 
     payload = payload .. "\n"
 
+    if callback ~= nil then
+        M.client.callbacks[request_id] = callback
+    end
+
     local wr_ok, written = pcall(vim.fn.chansend, M.client.chan_id, payload)
     if not wr_ok or written <= 0 then
+        M.client.callbacks[request_id] = nil
         return result.err(M.Error.write_failed)
     end
 
     return result.ok(request_id)
+end
+
+---@param command any[]
+---@param callback fun(reply: AmbientResult<AmbientMpvIpcReply, AmbientMpvIpcError>)
+---@return AmbientResult<integer, AmbientMpvIpcError>
+function M.requestAsync(command, callback)
+    return M.send(command, callback)
 end
 
 ---@param request_id integer
@@ -367,6 +406,7 @@ function M.stop()
     M.client.chan_id     = nil
     M.client.recv_buf    = ""
     M.client.pending     = {}
+    M.client.callbacks   = {}
     M.client.events      = {}
 
     return result.ok(nil)

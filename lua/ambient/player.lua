@@ -1,15 +1,18 @@
 local M = {}
 
-local uv = vim.uv or vim.loop
+local mpv    = require("ambient.mpv_ipc")
+local result = require("ambient.result")
+local uv     = vim.uv or vim.loop
 
 ---@enum AmbientPlayerError
 M.Error = {
-    NOT_READY        = "NOT_READY",
-    MPV_NOT_FOUND    = "MPV_NOT_FOUND",
-    MPV_START_FAILED = "MPV_START_FAILED",
-    NO_CURRENT       = "NO_CURRENT",
-    PAUSE_FAILED     = "PAUSE_FAILED",
-    RESUME_FAILED    = "RESUME_FAILED",
+    NOT_READY          = "NOT_READY",
+    MPV_NOT_FOUND      = "MPV_NOT_FOUND",
+    MPV_START_FAILED   = "MPV_START_FAILED",
+    MPV_COMMAND_FAILED = "MPV_COMMAND_FAILED",
+    NO_CURRENT         = "NO_CURRENT",
+    PAUSE_FAILED       = "PAUSE_FAILED",
+    RESUME_FAILED      = "RESUME_FAILED",
 }
 
 ---@enum AmbientPlayerState
@@ -27,11 +30,9 @@ M.STATE = {
 ---@field current? AmbientMusic
 ---@field volume integer
 ---@field job_id? integer
----@field pid? integer
 ---@field started_at_ms? integer
 ---@field paused_at_ms? integer
 ---@field paused_total_ms integer
----@field stopping boolean
 ---@field last_error? string
 
 ---@class AmbientPlaybackProgress
@@ -47,16 +48,15 @@ M.state = {
     current         = nil,
     volume          = 50,
     job_id          = nil,
-    pid             = nil,
     started_at_ms   = nil,
     paused_at_ms    = nil,
     paused_total_ms = 0,
-    stopping        = false,
     last_error      = nil,
 }
 
-M.events        = {}
-M.stopping_jobs = {}
+M.events              = {}
+M.load_generation     = 0
+M.pending_cover_paths = {}
 
 ---@param err AmbientPlayerError
 ---@return AmbientPlayerError
@@ -66,36 +66,225 @@ local function fail(err)
     return err
 end
 
----@param signal string
----@return boolean
-local function signalCurrentJob(signal)
-    if M.state.pid == nil then
-        return false
+---@param path string
+local function deleteFile(path)
+    if path == "" then
+        return
     end
 
-    local signal_map = {
-        sigstop = uv.constants and uv.constants.SIGSTOP or 19,
-        sigcont = uv.constants and uv.constants.SIGCONT or 18,
-    }
+    if vim.fn ~= nil and vim.fn.delete ~= nil then
+        pcall(vim.fn.delete, path)
+    elseif uv.fs_unlink ~= nil then
+        pcall(uv.fs_unlink, path)
+    end
+end
 
-    local ok = pcall(uv.kill, M.state.pid, signal_map[signal])
-    return ok
+local function cleanupPendingCoverPaths()
+    for path in pairs(M.pending_cover_paths) do
+        deleteFile(path)
+    end
+    M.pending_cover_paths = {}
+end
+
+local function releaseCurrentCover()
+    if M.state.current ~= nil and M.state.current.releaseCoverPic ~= nil then
+        M.state.current:releaseCoverPic()
+    end
+end
+
+local function emitTrackInfoUpdated()
+    if vim.api == nil or type(vim.api.nvim_exec_autocmds) ~= "function" then
+        return
+    end
+
+    pcall(vim.api.nvim_exec_autocmds, "User", {
+        pattern  = "AmbientTrackInfoUpdated",
+        modeline = false,
+    })
+end
+
+---@param metadata table
+---@param wanted string[]
+---@return string|string[]|nil
+local function getMetadataValue(metadata, wanted)
+    local wanted_set = {}
+    for _, key in ipairs(wanted) do
+        wanted_set[key:lower()] = true
+    end
+
+    for key, value in pairs(metadata) do
+        if type(key) == "string"
+            and wanted_set[key:lower()]
+            and (type(value) == "string" or type(value) == "table")
+        then
+            return value
+        end
+    end
+
+    return nil
+end
+
+---@param generation integer
+---@param music AmbientMusic
+---@return boolean
+local function isCurrentLoad(generation, music)
+    return M.load_generation == generation and M.state.current == music
+end
+
+---@param generation integer
+---@param music AmbientMusic
+---@param track table
+local function requestCover(generation, music, track)
+    local cover_path                  = vim.fn.tempname() .. ".png"
+    M.pending_cover_paths[cover_path] = true
+
+    local requested = mpv.requestAsync({
+        "screenshot-to-file",
+        cover_path,
+        "video",
+    }, function(reply)
+        M.pending_cover_paths[cover_path] = nil
+
+        if not reply.ok or not isCurrentLoad(generation, music) then
+            deleteFile(cover_path)
+            return
+        end
+
+        music:releaseCoverPic()
+        music.cover_pic = {
+            path      = cover_path,
+            mime      = "image/png",
+            width     = track["demux-w"] or track["w"],
+            height    = track["demux-h"] or track["h"],
+            source    = track.external and "external" or "embedded",
+            temporary = true,
+        }
+        emitTrackInfoUpdated()
+    end)
+
+    if not requested.ok then
+        M.pending_cover_paths[cover_path] = nil
+        deleteFile(cover_path)
+    end
+end
+
+---@param generation integer
+---@param music AmbientMusic
+local function requestTrackList(generation, music)
+    mpv.requestAsync({ "get_property", "track-list" }, function(reply)
+        if not reply.ok or not isCurrentLoad(generation, music) then
+            return
+        end
+
+        local selected_cover
+        local fallback_cover
+        for _, track in ipairs(reply.value.data or {}) do
+            if track.type == "video" and track.albumart == true then
+                fallback_cover = fallback_cover or track
+                if track.selected == true then
+                    selected_cover = track
+                    break
+                end
+            end
+        end
+
+        local cover_track = selected_cover or fallback_cover
+        if selected_cover ~= nil then
+            requestCover(generation, music, selected_cover)
+        elseif cover_track ~= nil then
+            mpv.requestAsync({
+                "set_property",
+                "vid",
+                cover_track.id,
+            }, function(selected)
+                if selected.ok and isCurrentLoad(generation, music) then
+                    requestCover(generation, music, cover_track)
+                end
+            end)
+        end
+    end)
+end
+
+---@param generation integer
+---@param music AmbientMusic
+local function requestMetadata(generation, music)
+    mpv.requestAsync({ "get_property", "metadata" }, function(reply)
+        if not reply.ok or not isCurrentLoad(generation, music) then
+            return
+        end
+
+        local metadata    = reply.value.data or {}
+        music.artist_name = getMetadataValue(metadata, {
+            "artist",
+            "album_artist",
+            "albumartist",
+        })
+        music.album_name  = getMetadataValue(metadata, { "album" })
+        emitTrackInfoUpdated()
+    end)
+end
+
+local function requestCurrentMusicInfo()
+    local generation = M.load_generation
+    local music      = M.state.current
+    if music == nil then
+        return
+    end
+
+    mpv.requestAsync({ "get_property", "path" }, function(reply)
+        if not reply.ok
+            or not isCurrentLoad(generation, music)
+            or reply.value.data ~= music.abs_path
+        then
+            return
+        end
+
+        requestMetadata(generation, music)
+        requestTrackList(generation, music)
+    end)
+end
+
+---@return AmbientPlayerError?
+local function ensureMpvStarted()
+    if mpv.isStarted() then
+        return nil
+    end
+
+    local started = mpv.start()
+    if not started.ok then
+        if started.err == mpv.Error.mpv_not_found then
+            return M.Error.MPV_NOT_FOUND
+        end
+        return M.Error.MPV_START_FAILED
+    end
+
+    M.state.job_id   = mpv.client.job_id
+    local volume_set = mpv.request({
+        "set_property",
+        "volume",
+        M.state.volume,
+    })
+    if not volume_set.ok then
+        mpv.stop()
+        M.state.job_id = nil
+        return M.Error.MPV_COMMAND_FAILED
+    end
+
+    return nil
 end
 
 ---@param config AmbientPlayerConfig
 function M:setup(config)
+    self:shutdown()
     self.state.volume          = config.volume or config.volumn_percentage or self.state.volume
     self.state.current         = nil
     self.state.job_id          = nil
-    self.state.pid             = nil
     self.state.started_at_ms   = nil
     self.state.paused_at_ms    = nil
     self.state.paused_total_ms = 0
-    self.state.stopping        = false
     self.state.last_error      = nil
     self.state.state           = self.STATE.READY
     self.events                = {}
-    self.stopping_jobs         = {}
 end
 
 ---@param music AmbientMusic
@@ -105,83 +294,36 @@ function M:play(music)
         return self.Error.NOT_READY
     end
 
-    if vim.fn.executable("mpv") == 0 then
-        return fail(self.Error.MPV_NOT_FOUND)
+    local start_error = ensureMpvStarted()
+    if start_error ~= nil then
+        return fail(start_error)
     end
 
-    if self.state.job_id ~= nil then
-        self:stop()
-    end
+    self.load_generation = self.load_generation + 1
+    releaseCurrentCover()
+    cleanupPendingCoverPaths()
 
-    self.state.stopping = false
-
-    local args = {
-        "mpv",
-        "--no-video",
-        "--force-window=no",
-        "--input-terminal=no",
-        "--terminal=no",
-        "--volume=" .. tostring(self.state.volume),
+    local loaded = mpv.request({
+        "loadfile",
         music.abs_path,
-    }
-
-    local job_id
-    job_id = vim.fn.jobstart(args, {
-        detach  = false,
-        on_exit = function(_, code)
-            local reason = "eof"
-            if M.stopping_jobs[job_id] then
-                reason = "stop"
-            elseif code ~= 0 then
-                reason = "error"
-            end
-
-            M.stopping_jobs[job_id] = nil
-
-            if M.state.job_id == job_id then
-                M.state.job_id          = nil
-                M.state.pid             = nil
-                M.state.started_at_ms   = nil
-                M.state.paused_at_ms    = nil
-                M.state.paused_total_ms = 0
-                M.state.stopping        = false
-                M.state.current         = nil
-                if M.state.state ~= M.STATE.ERROR then
-                    M.state.state = M.STATE.STOPPED
-                end
-            end
-
-            table.insert(M.events, {
-                event  = "end-file",
-                reason = reason,
-            })
-        end,
+        "replace",
     })
-
-    if job_id <= 0 then
-        return fail(self.Error.MPV_START_FAILED)
+    if not loaded.ok then
+        self.state.current = nil
+        return fail(self.Error.MPV_COMMAND_FAILED)
     end
 
-    -- we load the duration asynchronously only when we want to play this music
     music:loadDurationAsync()
 
-    local pid
-    if vim.fn.exists("*jobpid") ~= 0 then
-        local pid_ok, job_pid = pcall(vim.fn.jobpid, job_id)
-        if pid_ok and job_pid ~= 0 then
-            pid = job_pid
-        end
-    end
-
     self.state.current         = music
-    self.state.job_id          = job_id
-    self.state.pid             = pid
+    self.state.job_id          = mpv.client.job_id
     self.state.started_at_ms   = uv.now()
     self.state.paused_at_ms    = nil
     self.state.paused_total_ms = 0
     self.state.last_error      = nil
     self.state.state           = self.STATE.PLAYING
 
+    return nil
 end
 
 ---@return AmbientPlayerError?
@@ -190,12 +332,14 @@ function M:pause()
         return self.Error.NOT_READY
     end
 
-    if not signalCurrentJob("sigstop") then
+    local paused = mpv.request({ "set_property", "pause", true })
+    if not paused.ok then
         return fail(self.Error.PAUSE_FAILED)
     end
 
     self.state.paused_at_ms = uv.now()
     self.state.state        = self.STATE.PAUSED
+    return nil
 end
 
 ---@return AmbientPlayerError?
@@ -204,29 +348,31 @@ function M:resume()
         return self.Error.NOT_READY
     end
 
-    if not signalCurrentJob("sigcont") then
+    local resumed = mpv.request({ "set_property", "pause", false })
+    if not resumed.ok then
         return fail(self.Error.RESUME_FAILED)
     end
 
     if self.state.paused_at_ms ~= nil then
-        self.state.paused_total_ms = self.state.paused_total_ms +
-        (uv.now() - self.state.paused_at_ms)
+        self.state.paused_total_ms = self.state.paused_total_ms
+            + (uv.now() - self.state.paused_at_ms)
     end
 
     self.state.paused_at_ms = nil
     self.state.state        = self.STATE.PLAYING
+    return nil
 end
 
 function M:stop()
-    if self.state.job_id ~= nil then
-        self.state.stopping                   = true
-        self.stopping_jobs[self.state.job_id] = true
-        pcall(vim.fn.jobstop, self.state.job_id)
+    self.load_generation = self.load_generation + 1
+    releaseCurrentCover()
+    cleanupPendingCoverPaths()
+
+    if mpv.isStarted() then
+        mpv.request({ "stop" })
     end
 
     self.state.current         = nil
-    self.state.job_id          = nil
-    self.state.pid             = nil
     self.state.started_at_ms   = nil
     self.state.paused_at_ms    = nil
     self.state.paused_total_ms = 0
@@ -235,11 +381,19 @@ end
 
 function M:shutdown()
     self:stop()
+    if mpv.isStarted() then
+        mpv.stop()
+    end
+    cleanupPendingCoverPaths()
+    self.state.job_id = nil
 end
 
 ---@param volume integer
 function M:setVolume(volume)
     self.state.volume = volume
+    if mpv.isStarted() then
+        mpv.request({ "set_property", "volume", volume })
+    end
 end
 
 ---@return AmbientPlaybackProgress?
@@ -275,6 +429,34 @@ end
 
 ---@return table[]
 function M:drainEvents()
+    for _, event in ipairs(mpv.drainEvent()) do
+        if event.event == "file-loaded" then
+            requestCurrentMusicInfo()
+        elseif event.event == "end-file" then
+            if event.reason ~= "stop" and event.reason ~= "replaced" then
+                self.load_generation = self.load_generation + 1
+                releaseCurrentCover()
+                cleanupPendingCoverPaths()
+                self.state.current         = nil
+                self.state.started_at_ms   = nil
+                self.state.paused_at_ms    = nil
+                self.state.paused_total_ms = 0
+                if self.state.state ~= self.STATE.ERROR then
+                    self.state.state = self.STATE.STOPPED
+                end
+            end
+            table.insert(self.events, event)
+        elseif event.event == "shutdown" then
+            self.load_generation = self.load_generation + 1
+            releaseCurrentCover()
+            cleanupPendingCoverPaths()
+            self.state.current = nil
+            self.state.job_id  = nil
+            self.state.state   = self.STATE.STOPPED
+            table.insert(self.events, event)
+        end
+    end
+
     local events = self.events
     self.events  = {}
     return events

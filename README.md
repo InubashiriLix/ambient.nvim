@@ -16,6 +16,7 @@ Neovim.
 - Pause and resume the current track.
 - Random or sequential track selection.
 - Single directory, multiple directories, or explicit playlists.
+- A short-lived corner popup with title, artist, album, and cover art.
 - Optional `lualine.nvim` progress component.
 - User commands and `:checkhealth ambient`.
 
@@ -24,6 +25,7 @@ Neovim.
 - Neovim
 - `mpv`
 - `ffprobe`, optional, for accurate track duration and progress
+- `image.nvim` or `img2txt`, optional, for cover rendering in the track popup
 - `lualine.nvim`, optional, for the statusline progress component
 
 ## Installation
@@ -163,6 +165,7 @@ interval = {
 | `:Ambient next`                                  | Play the next track now.                                              |
 | `:Ambient previous`                              | Play the previous track from playback history.                        |
 | `:Ambient status`                                | Show the current scheduler status.                                    |
+| `:Ambient display`                               | Show the current-track popup again.                                   |
 | `:Ambient toggle pause`                          | Pause, resume, or start playback immediately.                         |
 | `:Ambient toggle stop`                           | Toggle between active playback/scheduling and stopped.                |
 | `:Ambient select playlist`                       | Select the active playlist.                                           |
@@ -196,6 +199,38 @@ a track from the active playlist and plays it immediately.
 `:Ambient select current-playlist-music` keeps the active playlist in playback
 order and moves the selector cursor to the playing track, or to the playlist
 cursor when no track is playing. The selected track is played immediately.
+
+## Current-track popup
+
+By default, a non-focusable popup appears in the bottom-right corner for three
+seconds whenever the track changes. It shows the title immediately, then
+refreshes in place when mpv finishes loading the artist, album, and cover.
+
+```lua
+track_popup = {
+    enabled = true,
+    duration_ms = 3000, -- zero keeps it open until explicitly closed
+    position = "bottom_right", -- top_left, top_right, bottom_left, bottom_right
+    width = 46,
+    height = 9,
+    margin = { row = 1, col = 1 },
+    border = "rounded",
+    title = " 󰎈 Now Playing ",
+    cover = {
+        enabled = true,
+        width = 14,
+        backend = "auto", -- auto, image.nvim, ascii, none
+    },
+}
+```
+
+`auto` uses `image.nvim` when available, otherwise tries `img2txt`, then falls
+back to a built-in record placeholder. Call
+`require("ambient").show_current_track(duration_ms)` or `:Ambient display` to
+show it manually.
+
+The plugin emits `User AmbientTrackChanged` when a new track starts and
+`User AmbientTrackInfoUpdated` when its metadata or cover becomes available.
 
 ## Statusline Progress
 
@@ -312,6 +347,12 @@ Top-level options:
 | `show_notification.when_show_total_music_count` | Notify with the number of discovered tracks.                             |
 | `show_notification.when_start_playing`          | Notify when playback starts.                                             |
 | `show_notification.when_toggle_playing_state`   | Notify when playback is toggled.                                         |
+| `track_popup.enabled`                           | Show the current-track popup on track changes.                            |
+| `track_popup.duration_ms`                       | Popup lifetime in milliseconds; `0` disables auto-close.                 |
+| `track_popup.position`                          | Popup corner: `top_left`, `top_right`, `bottom_left`, or `bottom_right`.  |
+| `track_popup.width` / `height`                  | Preferred popup size in terminal cells.                                  |
+| `track_popup.margin.row` / `.col`               | Distance from the selected corner.                                       |
+| `track_popup.cover.backend`                     | `auto`, `image.nvim`, `ascii`, or `none`.                                |
 
 Playlist options:
 
@@ -322,6 +363,9 @@ Playlist options:
 | `recursive_depth` | Scan depth for this playlist.                      |
 | `sort_field`      | `name`, `modify_time`, `create_time`, or `random`. |
 | `sort_direction`  | `asc` or `desc`.                                   |
+
+Unavailable playlist directories are skipped with a warning when at least one
+configured playlist can be loaded. Setup fails when none of them are usable.
 
 Progress options:
 

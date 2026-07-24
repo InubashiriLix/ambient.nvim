@@ -13,6 +13,7 @@
 - 支持暂停和恢复当前歌曲。
 - 支持随机选歌和顺序选歌。
 - 支持单目录、多目录、完整播放列表。
+- 提供显示标题、艺术家、专辑和封面的短时角落提示窗。
 - 支持 `lualine.nvim` 状态栏进度组件。
 - 提供用户命令和 `:checkhealth ambient`。
 
@@ -21,6 +22,7 @@
 - Neovim
 - `mpv`
 - `ffprobe`，可选，用于读取音频时长和进度
+- `image.nvim` 或 `img2txt`，可选，用于在歌曲提示窗里渲染封面
 - `lualine.nvim`，可选，用于状态栏进度组件
 
 ## 安装
@@ -143,6 +145,7 @@ interval = {
 | `:Ambient next`                                  | 立刻播放下一首。                       |
 | `:Ambient previous`                              | 播放历史中的上一首。                   |
 | `:Ambient status`                                | 显示当前状态。                         |
+| `:Ambient display`                               | 再次显示当前歌曲提示窗。               |
 | `:Ambient toggle pause`                          | 暂停、恢复，或立即开始播放。           |
 | `:Ambient toggle stop`                           | 在播放/等待和停止之间切换。            |
 | `:Ambient select playlist`                       | 选择当前播放列表。                     |
@@ -173,6 +176,37 @@ interval = {
 `:Ambient select current-playlist-music` 会保持当前播放列表的实际顺序不变，并把
 选择器光标移动到正在播放的歌曲；没有歌曲正在播放时则移动到播放列表光标所指
 的下一首。选中的歌曲会立刻播放。
+
+## 当前歌曲提示窗
+
+默认情况下，每次切歌都会在右下角显示一个不抢焦点的提示窗，三秒后自动关闭。
+标题会立即出现；mpv 读完 artist、album 和 cover 后，提示窗会原位刷新。
+
+```lua
+track_popup = {
+    enabled = true,
+    duration_ms = 3000, -- 设为 0 时持续显示，直到主动关闭
+    position = "bottom_right", -- top_left、top_right、bottom_left、bottom_right
+    width = 46,
+    height = 9,
+    margin = { row = 1, col = 1 },
+    border = "rounded",
+    title = " 󰎈 Now Playing ",
+    cover = {
+        enabled = true,
+        width = 14,
+        backend = "auto", -- auto、image.nvim、ascii、none
+    },
+}
+```
+
+`auto` 会优先使用已安装的 `image.nvim`；不可用时尝试 `img2txt` 字符画；
+仍不可用则显示内置唱片占位图。可以调用
+`require("ambient").show_current_track(duration_ms)` 或执行
+`:Ambient display` 手动显示。
+
+新歌曲开始播放时会触发 `User AmbientTrackChanged`；元数据或封面准备好时会触发
+`User AmbientTrackInfoUpdated`。
 
 ## 状态栏进度
 
@@ -284,6 +318,12 @@ progress = {
 | `show_notification.when_show_total_music_count` | 显示扫描到的曲目数量。 |
 | `show_notification.when_start_playing` | 开始播放时通知。 |
 | `show_notification.when_toggle_playing_state` | 切换播放状态时通知。 |
+| `track_popup.enabled` | 切歌时是否显示当前歌曲提示窗。 |
+| `track_popup.duration_ms` | 显示时长（毫秒）；`0` 表示不自动关闭。 |
+| `track_popup.position` | `top_left`、`top_right`、`bottom_left` 或 `bottom_right`。 |
+| `track_popup.width` / `height` | 浮窗期望宽高，单位为终端单元格。 |
+| `track_popup.margin.row` / `.col` | 浮窗距所选角落的间距。 |
+| `track_popup.cover.backend` | `auto`、`image.nvim`、`ascii` 或 `none`。 |
 
 播放列表选项：
 
@@ -294,6 +334,9 @@ progress = {
 | `recursive_depth` | 当前播放列表的扫描深度。 |
 | `sort_field` | `name`、`modify_time`、`create_time` 或 `random`。 |
 | `sort_direction` | `asc` 或 `desc`。 |
+
+只要至少有一个播放列表可用，不存在的播放列表目录会被跳过并给出警告；
+所有配置目录都不可用时，setup 才会失败。
 
 进度组件选项：
 

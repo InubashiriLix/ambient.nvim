@@ -145,6 +145,7 @@ local function loadSchedule(options)
     end
 
     local timers = {}
+    local user_events = {}
     local now = 1000
     local uv = {
         hrtime = function()
@@ -184,7 +185,11 @@ local function loadSchedule(options)
             return fn
         end,
         api = {
-            nvim_exec_autocmds = function() end,
+            nvim_exec_autocmds = function(event, opts)
+                if event == "User" then
+                    table.insert(user_events, opts.pattern)
+                end
+            end,
         },
     }
 
@@ -225,8 +230,22 @@ local function loadSchedule(options)
     }
     return schedule, player, selector, timers, config, function(value)
         now = value
-    end
+    end, user_events
 end
+
+t.test("schedule emits a dedicated event whenever a track starts", function()
+    local schedule, _, _, _, config, _, events = loadSchedule()
+    t.truthy(schedule:setup(config).ok)
+    for index = #events, 1, -1 do
+        table.remove(events, index)
+    end
+
+    t.truthy(schedule:start().ok)
+    t.eq(events, {
+        "AmbientStateChanged",
+        "AmbientTrackChanged",
+    })
+end)
 
 t.test("schedule traverses previous and future playback history", function()
     local schedule, player, _, _, config = loadSchedule()
@@ -316,6 +335,48 @@ t.test("playlist changes reset navigation history", function()
     t.eq(player.played, { "a", "b", "x" })
 end)
 
+t.test("schedule skips unavailable playlists when another playlist is usable", function()
+    local schedule, _, _, _, config = loadSchedule()
+    table.insert(config.playlists, {
+        abs_path = "/missing",
+        ext = { "wav" },
+        recursive_depth = 1,
+        sort_field = "name",
+        sort_direction = "asc",
+    })
+
+    local configured = schedule:setup(config)
+
+    t.truthy(configured.ok)
+    t.eq(schedule:getStatus().playlist_count, 1)
+    t.eq(schedule:getStatus().playlist_warnings, {
+        {
+            path = "/missing",
+            error = "PATH_NOT_EXIST",
+        },
+    })
+    t.eq(schedule.state, schedule.State.READY)
+end)
+
+t.test("schedule reports every unavailable playlist when none can be loaded", function()
+    local schedule, _, _, _, config = loadSchedule()
+    config.playlists = {
+        {
+            abs_path = "/missing",
+            ext = { "wav" },
+            recursive_depth = 1,
+            sort_field = "name",
+            sort_direction = "asc",
+        },
+    }
+
+    local configured = schedule:setup(config)
+
+    t.falsy(configured.ok)
+    t.eq(configured.err, schedule.Error.PLAYLIST_CONFIG_ERROR)
+    t.eq(schedule:get_error_message(), "/missing: PATH_NOT_EXIST")
+end)
+
 t.test("sorted music selector uses the sort-first UI and immediately plays its choice", function()
     local schedule, player, selector, _, config = loadSchedule({ sorted_music_choice = 2 })
     schedule:setup(config)
@@ -362,9 +423,22 @@ t.test("status has a direct internal snapshot and a compatible public Result", f
     })
     schedule:setup(config)
     schedule:start()
+    schedule.current_music.artist_name = "Artist"
+    schedule.current_music.album_name  = "Album"
+    schedule.current_music.cover_pic   = {
+        path      = "/tmp/cover.png",
+        mime      = "image/png",
+        width     = 100,
+        height    = 100,
+        source    = "embedded",
+        temporary = true,
+    }
 
     local status = schedule:getStatus()
     t.eq(status.current_music_name, "a")
+    t.eq(status.current_artist_name, "Artist")
+    t.eq(status.current_album_name, "Album")
+    t.eq(status.current_cover_pic, schedule.current_music.cover_pic)
     t.eq(status.progress_percentage, 25)
     local wrapped = schedule:get()
     t.truthy(wrapped.ok)
