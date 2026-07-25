@@ -20,31 +20,26 @@
 
 ## 功能演示
 
-下面每个标记都为一个由 GitHub 外部托管的视频预留位置。添加录像时，在 GitHub
-网页中编辑本 README，把视频拖到对应标记下方，再用 GitHub 生成的
-`https://github.com/user-attachments/assets/...` 地址替换
-“视频即将添加”这一行。建议保留标记，方便以后定位和更换演示。
-
 ### 播放列表
 
 从单个目录、多个目录或完整播放列表加载音乐，并交互式切换当前播放列表。
 
 <!-- AMBIENT_DEMO_PLAYLISTS -->
-> 视频即将添加。
+https://github.com/user-attachments/assets/eac41a34-67a3-41bc-9829-b81bedac1b90
 
 ### 选歌与排序
 
 选择显示排序方式后选歌，或者从当前播放列表的播放位置开始浏览并播放。
 
 <!-- AMBIENT_DEMO_TRACK_SELECTION -->
-> 视频即将添加。
+https://github.com/user-attachments/assets/cdee5e17-bb9c-4316-ac77-94c221d5a0ce
 
 ### 当前歌曲提示窗
 
 自动或手动显示短时角落提示窗，其中包含歌曲标题、艺术家、专辑和封面。
 
 <!-- AMBIENT_DEMO_TRACK_POPUP -->
-> 视频即将添加。
+https://github.com/user-attachments/assets/0d403588-c8da-40d8-9ddf-19079b143cf4
 
 ### 状态栏进度
 
@@ -52,28 +47,22 @@
 并支持运行时显示或隐藏。
 
 <!-- AMBIENT_DEMO_STATUSLINE_PROGRESS -->
-> 视频即将添加。
+https://github.com/user-attachments/assets/43689280-f75f-4a6d-8507-93c3feb7331e
 
 ### 命令、补全、状态与通知
 
 使用带补全的 `:Ambient` 命令树，查看调度器状态，并接收可配置的生命周期通知。
 
 <!-- AMBIENT_DEMO_COMMANDS -->
-> 视频即将添加。
+https://github.com/user-attachments/assets/aed74d1e-7a12-4fe2-a9fd-03f5411f18ed
 
 ### 健康检查
 
 使用 `:checkhealth ambient` 检查 `mpv`、可选依赖和配置的音乐目录。
 
-<!-- AMBIENT_DEMO_HEALTH_CHECK -->
-> 视频即将添加。
-
 ### 西西弗斯
 
-使用 `:Ambient sisyphus` 播放彩蛋动画和音乐。
-
-<!-- AMBIENT_DEMO_SISYPHUS -->
-> 视频即将添加。
+使用 `:Ambient sisyphus` 播放彩蛋动画和音乐。这是一个彩蛋, 可以自己去试试喵
 
 ## 依赖
 
