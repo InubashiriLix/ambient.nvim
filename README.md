@@ -35,7 +35,7 @@ Load music from one directory, multiple directories, or explicit playlists,
 then switch the active playlist interactively.
 
 <!-- AMBIENT_DEMO_PLAYLISTS -->
-> Video coming soon.
+https://github.com/user-attachments/assets/eac41a34-67a3-41bc-9829-b81bedac1b90
 
 ### Track selection and sorting
 
@@ -43,7 +43,7 @@ Choose a display sort order, select a track, or browse from the active
 playlist's current playback position.
 
 <!-- AMBIENT_DEMO_TRACK_SELECTION -->
-> Video coming soon.
+https://github.com/user-attachments/assets/cdee5e17-bb9c-4316-ac77-94c221d5a0ce
 
 ### Current-track popup
 
@@ -51,7 +51,7 @@ Show the track title, artist, album, and cover art in a short-lived corner
 popup, either automatically or on demand.
 
 <!-- AMBIENT_DEMO_TRACK_POPUP -->
-> Video coming soon.
+https://github.com/user-attachments/assets/0d403588-c8da-40d8-9ddf-19079b143cf4
 
 ### Statusline progress
 
@@ -59,30 +59,24 @@ Display track title, elapsed time, progress, scrolling text, built-in bar
 styles, and runtime show/hide behavior through `lualine.nvim`.
 
 <!-- AMBIENT_DEMO_STATUSLINE_PROGRESS -->
-> Video coming soon.
+https://github.com/user-attachments/assets/43689280-f75f-4a6d-8507-93c3feb7331e
 
 ### Commands, completion, status, and notifications
 
 Use the `:Ambient` command tree and its completion, inspect scheduler status,
 and receive configurable lifecycle notifications.
 
-<!-- AMBIENT_DEMO_COMMANDS -->
-> Video coming soon.
+https://github.com/user-attachments/assets/aed74d1e-7a12-4fe2-a9fd-03f5411f18ed
 
 ### Health check
 
 Inspect the `mpv`, optional dependency, and configured music-directory checks
 provided by `:checkhealth ambient`.
 
-<!-- AMBIENT_DEMO_HEALTH_CHECK -->
-> Video coming soon.
-
 ### Sisyphus
 
 Run the bonus animation and its music with `:Ambient sisyphus`.
-
-<!-- AMBIENT_DEMO_SISYPHUS -->
-> Video coming soon.
+This is a bunny egg. Try it yourself pls :)
 
 ## Requirements
 
