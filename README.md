@@ -23,12 +23,6 @@ Neovim.
 
 ## Feature Demos
 
-Each marker below reserves a place for one externally hosted GitHub video.
-To add a recording, edit this README on GitHub, drag the video below the
-matching marker, and replace the `Video coming soon.` line with the generated
-`https://github.com/user-attachments/assets/...` URL. Keep the marker so the
-demo remains easy to identify later.
-
 ### Playlists
 
 Load music from one directory, multiple directories, or explicit playlists,
