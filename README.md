@@ -19,6 +19,70 @@ Neovim.
 - A short-lived corner popup with title, artist, album, and cover art.
 - Optional `lualine.nvim` progress component.
 - User commands and `:checkhealth ambient`.
+- A bonus Sisyphus animation with music.
+
+## Feature Demos
+
+Each marker below reserves a place for one externally hosted GitHub video.
+To add a recording, edit this README on GitHub, drag the video below the
+matching marker, and replace the `Video coming soon.` line with the generated
+`https://github.com/user-attachments/assets/...` URL. Keep the marker so the
+demo remains easy to identify later.
+
+### Playlists
+
+Load music from one directory, multiple directories, or explicit playlists,
+then switch the active playlist interactively.
+
+<!-- AMBIENT_DEMO_PLAYLISTS -->
+> Video coming soon.
+
+### Track selection and sorting
+
+Choose a display sort order, select a track, or browse from the active
+playlist's current playback position.
+
+<!-- AMBIENT_DEMO_TRACK_SELECTION -->
+> Video coming soon.
+
+### Current-track popup
+
+Show the track title, artist, album, and cover art in a short-lived corner
+popup, either automatically or on demand.
+
+<!-- AMBIENT_DEMO_TRACK_POPUP -->
+> Video coming soon.
+
+### Statusline progress
+
+Display track title, elapsed time, progress, scrolling text, built-in bar
+styles, and runtime show/hide behavior through `lualine.nvim`.
+
+<!-- AMBIENT_DEMO_STATUSLINE_PROGRESS -->
+> Video coming soon.
+
+### Commands, completion, status, and notifications
+
+Use the `:Ambient` command tree and its completion, inspect scheduler status,
+and receive configurable lifecycle notifications.
+
+<!-- AMBIENT_DEMO_COMMANDS -->
+> Video coming soon.
+
+### Health check
+
+Inspect the `mpv`, optional dependency, and configured music-directory checks
+provided by `:checkhealth ambient`.
+
+<!-- AMBIENT_DEMO_HEALTH_CHECK -->
+> Video coming soon.
+
+### Sisyphus
+
+Run the bonus animation and its music with `:Ambient sisyphus`.
+
+<!-- AMBIENT_DEMO_SISYPHUS -->
+> Video coming soon.
 
 ## Requirements
 
@@ -172,6 +236,7 @@ interval = {
 | `:Ambient select music`                          | Choose a display sort, then select and play a track.                  |
 | `:Ambient select current-playlist-music`         | Select and play from the active playlist's current playback position. |
 | `:Ambient progress toggle`                       | Show or hide the statusline progress component.                       |
+| `:Ambient sisyphus`                              | Run the bonus Sisyphus animation and music.                            |
 
 Subcommands support completion at each level. For example, completing after
 `:Ambient select ` offers all selection commands.
