@@ -270,6 +270,7 @@ t.test("Ambient command completion follows the command tree", function()
         "previous",
         "progress",
         "select",
+        "sisyphus",
         "start",
         "status",
         "stop",

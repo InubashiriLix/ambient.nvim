@@ -8,7 +8,9 @@ local progress    = require("ambient.progress")
 local schedule    = require("ambient.schedule")
 local track_popup = require("ambient.track_popup")
 
-local commands_registered = false
+local sysiphus = require("ambient.sysiphus")
+
+local commands_registered     = false
 local popup_events_registered = false
 
 local function stopPlaybackOnExit()
@@ -175,22 +177,22 @@ function M.register_commands()
     ---@type AmbientCommandNode
     local command_root = {
         children = {
-            start = {
+            start    = {
                 run = function()
                     reportResult(M.start())
                 end,
             },
-            stop = {
+            stop     = {
                 run = function()
                     reportResult(M.stop(), "Ambient stopped")
                 end,
             },
-            pause = {
+            pause    = {
                 run = function()
                     reportResult(M.pause(), "Ambient paused")
                 end,
             },
-            next = {
+            next     = {
                 run = function()
                     reportResult(M.next())
                 end,
@@ -200,38 +202,38 @@ function M.register_commands()
                     reportResult(M.previous())
                 end,
             },
-            status = {
+            status   = {
                 run = function()
                     notify(formatStatus(schedule:getStatus()))
                 end,
             },
-            display = {
+            display  = {
                 run = function()
                     reportResult(M.show_current_track())
                 end,
             },
-            toggle = {
+            toggle   = {
                 children = {
                     pause = {
                         run = function()
                             reportResult(M.toggle_pause_resume())
                         end,
                     },
-                    stop = {
+                    stop  = {
                         run = function()
                             reportResult(M.toggle_start_stop())
                         end,
                     },
                 },
             },
-            select = {
+            select   = {
                 children = {
-                    playlist = {
+                    playlist                   = {
                         run = function()
                             reportResult(M.select_playlist_ui())
                         end,
                     },
-                    music = {
+                    music                      = {
                         run = function()
                             reportResult(M.select_music_item())
                         end,
@@ -257,65 +259,79 @@ function M.register_commands()
                     },
                 },
             },
+            -- bonus
+            sisyphus = {
+                run = function()
+                    reportResult(sysiphus:display())
+                end,
+            },
+
         },
     }
 
-    vim.api.nvim_create_user_command("Ambient", function(opts)
-        local node = command_root
-        for token in opts.args:gmatch("%S+") do
-            if node.children == nil or node.children[token] == nil then
-                notify("Unknown Ambient command: " .. opts.args, vim.log.levels.ERROR)
-                return
-            end
-            node = node.children[token]
-        end
-
-        if node.run == nil then
-            local available = {}
-            for name in pairs(node.children or {}) do
-                table.insert(available, name)
-            end
-            table.sort(available)
-            notify("Ambient subcommand required: " .. table.concat(available, ", "), vim.log.levels.ERROR)
-            return
-        end
-
-        node.run()
-    end, {
-        nargs = "*",
-        desc = "Control ambient.nvim",
-        force = true,
-        complete = function(arg_lead, cmd_line, cursor_pos)
-            local before_cursor = cmd_line:sub(1, cursor_pos)
-            local args          = before_cursor:match("^%s*:?[Aa]mbient%s?(.*)$") or ""
-            local tokens        = {}
-            for token in args:gmatch("%S+") do
-                table.insert(tokens, token)
-            end
-
-            -- The last token is the partial argument represented by arg_lead.
-            if args:match("%S$") then
-                table.remove(tokens)
-            end
-
+    vim.api.nvim_create_user_command(
+    -- cmd name
+        "Ambient",
+        -- cmd
+        function(opts)
             local node = command_root
-            for _, token in ipairs(tokens) do
+            for token in opts.args:gmatch("%S+") do
                 if node.children == nil or node.children[token] == nil then
-                    return {}
+                    notify("Unknown Ambient command: " .. opts.args, vim.log.levels.ERROR)
+                    return
                 end
                 node = node.children[token]
             end
 
-            local matches = {}
-            for name in pairs(node.children or {}) do
-                if name:sub(1, #arg_lead) == arg_lead then
-                    table.insert(matches, name)
+            if node.run == nil then
+                local available = {}
+                for name in pairs(node.children or {}) do
+                    table.insert(available, name)
                 end
+                table.sort(available)
+                notify("Ambient subcommand required: " .. table.concat(available, ", "),
+                    vim.log.levels.ERROR)
+                return
             end
-            table.sort(matches)
-            return matches
+
+            node.run()
         end,
-    })
+        -- opts
+        {
+            nargs    = "*",
+            desc     = "Control ambient.nvim",
+            force    = true,
+            complete = function(arg_lead, cmd_line, cursor_pos)
+                local before_cursor = cmd_line:sub(1, cursor_pos)
+                local args          = before_cursor:match("^%s*:?[Aa]mbient%s?(.*)$") or ""
+                local tokens        = {}
+                for token in args:gmatch("%S+") do
+                    table.insert(tokens, token)
+                end
+
+                -- The last token is the partial argument represented by arg_lead.
+                if args:match("%S$") then
+                    table.remove(tokens)
+                end
+
+                local node = command_root
+                for _, token in ipairs(tokens) do
+                    if node.children == nil or node.children[token] == nil then
+                        return {}
+                    end
+                    node = node.children[token]
+                end
+
+                local matches = {}
+                for name in pairs(node.children or {}) do
+                    if name:sub(1, #arg_lead) == arg_lead then
+                        table.insert(matches, name)
+                    end
+                end
+                table.sort(matches)
+                return matches
+            end,
+        })
 end
 
 ---@param opts? AmbientConfig

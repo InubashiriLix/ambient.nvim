@@ -179,6 +179,7 @@ t.test("player controls playback and progress through mpv IPC", function()
     t.eq(player:play(track), nil)
     t.eq(env.requests[1], { "set_property", "volume", 65 })
     t.eq(env.requests[2], { "loadfile", "/music/a.mp3", "replace" })
+    t.eq(env.requests[3], { "set_property", "pause", false })
     t.eq(track.load_count, 1)
     t.eq(player.state.state, player.STATE.PLAYING)
 
@@ -189,7 +190,7 @@ t.test("player controls playback and progress through mpv IPC", function()
         percentage  = 20,
     })
     t.eq(player:pause(), nil)
-    t.eq(env.requests[3], { "set_property", "pause", true })
+    t.eq(env.requests[4], { "set_property", "pause", true })
 
     env.setNow(5000)
     t.eq(player:getProgress(), {
@@ -198,7 +199,7 @@ t.test("player controls playback and progress through mpv IPC", function()
         percentage  = 20,
     })
     t.eq(player:resume(), nil)
-    t.eq(env.requests[4], { "set_property", "pause", false })
+    t.eq(env.requests[5], { "set_property", "pause", false })
 
     env.setNow(7000)
     t.eq(player:getProgress(), {
@@ -208,7 +209,7 @@ t.test("player controls playback and progress through mpv IPC", function()
     })
 
     player:stop()
-    t.eq(env.requests[5], { "stop" })
+    t.eq(env.requests[6], { "stop" })
     t.eq(track.release_count, 1)
     t.eq(player.state.state, player.STATE.STOPPED)
 end)

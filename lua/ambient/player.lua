@@ -313,6 +313,20 @@ function M:play(music)
         return fail(self.Error.MPV_COMMAND_FAILED)
     end
 
+    -- mpv keeps the pause property when replacing the current file.  Always
+    -- clear it here so that loading a track while the previous one was paused
+    -- cannot leave the player state and the actual mpv state out of sync.
+    local unpaused = mpv.request({
+        "set_property",
+        "pause",
+        false,
+    })
+    if not unpaused.ok then
+        mpv.request({ "stop" })
+        self.state.current = nil
+        return fail(self.Error.MPV_COMMAND_FAILED)
+    end
+
     music:loadDurationAsync()
 
     self.state.current         = music
