@@ -1,8 +1,8 @@
 local M = {}
 
-local result          = require("ambient.result")
-local playlist        = require("ambient.playlist")
-local progress_styles = require("ambient.progress_styles")
+local result          = require("ambient.common.result")
+local playlist        = require("ambient.models.playlist")
+local progress_styles = require("ambient.components.progress_styles")
 
 ---@enum AmbientConfigError
 M.Error = {
@@ -91,16 +91,16 @@ local default_config = {
                 fg = "#89b4fa",
                 bg = "#181825",
             },
-            title = {
+            title  = {
                 fg   = "#f5c2e7",
                 bg   = "#181825",
                 bold = true,
             },
-            label = {
+            label  = {
                 fg = "#89b4fa",
                 bg = "#181825",
             },
-            muted = {
+            muted  = {
                 fg     = "#7f849c",
                 bg     = "#181825",
                 italic = true,
@@ -152,10 +152,10 @@ local valid_display_positions = {
 }
 
 local valid_cover_backends = {
-    auto          = true,
+    auto           = true,
     ["image.nvim"] = true,
-    ascii         = true,
-    none          = true,
+    ascii          = true,
+    none           = true,
 }
 
 local deprecated_progress_fields = {

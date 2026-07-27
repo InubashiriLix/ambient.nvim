@@ -2,14 +2,15 @@ local M = {}
 
 require("ambient.typedef")
 
-local result      = require("ambient.result")
+local result      = require("ambient.common.result")
 local config      = require("ambient.config")
-local progress    = require("ambient.progress")
+local progress    = require("ambient.components.progress")
 local schedule    = require("ambient.schedule")
 local selection   = require("ambient.selection")
-local track_popup = require("ambient.track_popup")
+local track_popup = require("ambient.components.track_popup")
 
-local sysiphus = require("ambient.sysiphus")
+-- bonus
+local sysiphus = require("ambient.bonus.sysiphus")
 
 local commands_registered     = false
 local popup_events_registered = false

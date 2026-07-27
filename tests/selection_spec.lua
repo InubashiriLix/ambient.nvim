@@ -1,8 +1,8 @@
 local t      = require("tests.testlib")
-local result = require("ambient.result")
+local result = require("ambient.common.result")
 
 local playlist_module = {
-    SortField = {
+    SortField     = {
         name        = "name",
         create_time = "create_time",
         modify_time = "modify_time",
@@ -16,8 +16,8 @@ local playlist_module = {
 
 function playlist_module.getSortMethodTable()
     return {
-        { field = "name", direction = "asc" },
-        { field = "name", direction = "desc" },
+        { field = "name",   direction = "asc" },
+        { field = "name",   direction = "desc" },
         { field = "random", direction = "asc" },
     }
 end
@@ -26,7 +26,7 @@ local function playlist(path, names)
     local musics         = {}
     local sorted_indices = {}
     for index, name in ipairs(names) do
-        musics[index] = {
+        musics[index]         = {
             name     = name,
             abs_path = path .. "/" .. name .. ".wav",
         }
@@ -136,14 +136,14 @@ local function loadSelection(select_ui, options)
         })
     end
 
-    _G.vim = {
+    _G.vim                                        = {
         ui  = { select = select_ui },
         log = { levels = { ERROR = 2 } },
     }
-    package.loaded["ambient.playlist"] = playlist_module
-    package.loaded["ambient.playlist_selector"] = selector
-    package.loaded["ambient.schedule"] = schedule
-    package.loaded["ambient.progress"] = progress
+    package.loaded["ambient.models.playlist"]     = playlist_module
+    package.loaded["ambient.playlist_selector"]   = selector
+    package.loaded["ambient.schedule"]            = schedule
+    package.loaded["ambient.components.progress"] = progress
     t.clearModules("ambient.selection")
 
     return require("ambient.selection"),
@@ -155,16 +155,16 @@ local function loadSelection(select_ui, options)
 end
 
 t.test("selection applies playlist and sort in one readable workflow", function()
-    local kinds  = {}
-    local first  = playlist("/first", { "a" })
-    local second = playlist("/second", { "b" })
+    local kinds                                                = {}
+    local first                                                = playlist("/first", { "a" })
+    local second                                               = playlist("/second", { "b" })
     local selection, schedule, progress, notifications, notify = loadSelection(
         function(items, opts, on_select)
             table.insert(kinds, opts.kind)
             on_select(items[2])
         end,
         {
-            active = first,
+            active    = first,
             playlists = { first, second },
         }
     )
@@ -185,7 +185,7 @@ end)
 
 t.test("selection cancellation stops the workflow without side effects", function()
     for cancel_stage = 1, 2 do
-        local stage = 0
+        local stage                                                = 0
         local selection, schedule, progress, notifications, notify = loadSelection(
             function(items, _, on_select)
                 stage = stage + 1
@@ -206,7 +206,7 @@ t.test("selection cancellation stops the workflow without side effects", functio
 end)
 
 t.test("selection resumes across genuinely asynchronous UI callbacks", function()
-    local pending = {}
+    local pending                                  = {}
     local selection, schedule, progress, _, notify = loadSelection(
         function(items, opts, on_select)
             table.insert(pending, {
@@ -232,7 +232,7 @@ t.test("selection resumes across genuinely asynchronous UI callbacks", function(
 end)
 
 t.test("sorted music selection does not mutate playback order", function()
-    local kinds = {}
+    local kinds                                                        = {}
     local selection, schedule, progress, notifications, notify, active = loadSelection(
         function(items, opts, on_select)
             table.insert(kinds, opts.kind)
@@ -257,9 +257,9 @@ t.test("current playlist selection follows playback order and focuses playing mu
     local displayed_items
     local initial_index
     local snacks_index
-    local active = playlist("/one", { "a", "b", "c" })
+    local active          = playlist("/one", { "a", "b", "c" })
     active.sorted_indices = { 3, 1, 2 }
-    active.cursor = 2
+    active.cursor         = 2
 
     local selection, schedule, progress, _, notify = loadSelection(
         function(items, opts, on_select)
@@ -275,7 +275,7 @@ t.test("current playlist selection follows playback order and focuses playing mu
             on_select(items[initial_index])
         end,
         {
-            active = active,
+            active        = active,
             current_music = active.musics[2],
         }
     )
@@ -316,7 +316,7 @@ t.test("selection reports UI and schedule failures exactly once", function()
 end)
 
 t.test("selection returns state and input errors before opening UI", function()
-    local opened = false
+    local opened                                 = false
     local selection, _, _, notifications, notify = loadSelection(
         function()
             opened = true

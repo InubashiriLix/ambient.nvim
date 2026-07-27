@@ -20,8 +20,8 @@ local function loadMusic()
         },
     }
 
-    t.clearModules("ambient.music")
-    return require("ambient.music"), deleted
+    t.clearModules("ambient.models.music")
+    return require("ambient.models.music"), deleted
 end
 
 t.test("music initializes optional metadata and cover fields", function()

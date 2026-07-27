@@ -1,5 +1,5 @@
-local t = require("tests.testlib")
-local result = require("ambient.result")
+local t      = require("tests.testlib")
+local result = require("ambient.common.result")
 
 local function makePlaylist(path, names, sort_field)
     local musics = {}
@@ -8,12 +8,12 @@ local function makePlaylist(path, names, sort_field)
     end
 
     local item = {
-        abs_path = path,
-        name = path:match("([^/]+)$"),
-        musics = musics,
+        abs_path       = path,
+        name           = path:match("([^/]+)$"),
+        musics         = musics,
         sorted_indices = {},
-        cursor = 1,
-        sort_field = sort_field or "name",
+        cursor         = 1,
+        sort_field     = sort_field or "name",
         sort_direction = "asc",
     }
     for index = 1, #musics do
@@ -53,7 +53,7 @@ local function makePlaylist(path, names, sort_field)
         self.cursor = 1
     end
     function item:setSortMethod(field, direction)
-        self.sort_field = field
+        self.sort_field     = field
         self.sort_direction = direction
         self:sort()
     end
@@ -68,7 +68,7 @@ local function makePlaylist(path, names, sort_field)
 end
 
 local function loadSchedule(options)
-    options = options or {}
+    options         = options or {}
     local playlists = {}
     for path, names in pairs(options.playlists or { ["/one"] = { "a", "b", "c" } }) do
         playlists[path] = makePlaylist(path, names, options.sort_field)
@@ -113,16 +113,16 @@ local function loadSchedule(options)
             items[index] = item
         end
         return result.ok({
-            playlists    = items,
+            playlists     = items,
             current_index = self.current_index,
         })
     end
 
     local player = {
-        played = {},
-        events = {},
+        played     = {},
+        events     = {},
         play_error = options.play_error,
-        progress = options.progress,
+        progress   = options.progress,
     }
     function player:setup(config)
         self.config = config
@@ -145,21 +145,21 @@ local function loadSchedule(options)
     end
     function player:drainEvents()
         local events = self.events
-        self.events = {}
+        self.events  = {}
         return events
     end
     function player:getProgress()
         return self.progress
     end
 
-    local timers = {}
+    local timers      = {}
     local user_events = {}
-    local now = 1000
-    local uv = {
-        hrtime = function()
+    local now         = 1000
+    local uv          = {
+        hrtime    = function()
             return 10
         end,
-        now = function()
+        now       = function()
             return now
         end,
         new_timer = function()
@@ -185,14 +185,14 @@ local function loadSchedule(options)
     }
 
     _G.vim = {
-        uv = uv,
-        schedule = function(fn)
+        uv            = uv,
+        schedule      = function(fn)
             fn()
         end,
         schedule_wrap = function(fn)
             return fn
         end,
-        api = {
+        api           = {
             nvim_exec_autocmds = function(event, opts)
                 if event == "User" then
                     table.insert(user_events, opts.pattern)
@@ -201,8 +201,8 @@ local function loadSchedule(options)
         },
     }
 
-    package.loaded["ambient.playlist"] = {
-        SortField = {
+    package.loaded["ambient.models.playlist"]   = {
+        SortField     = {
             name        = "name",
             modify_time = "modify_time",
             create_time = "create_time",
@@ -212,7 +212,7 @@ local function loadSchedule(options)
             asc  = "asc",
             desc = "desc",
         },
-        new = function(_, path)
+        new           = function(_, path)
             local item = playlists[path]
             if item == nil then
                 return result.err("PATH_NOT_EXIST")
@@ -221,18 +221,18 @@ local function loadSchedule(options)
         end,
     }
     package.loaded["ambient.playlist_selector"] = selector
-    package.loaded["ambient.player"] = player
+    package.loaded["ambient.player"]            = player
     t.clearModules("ambient.schedule")
     local schedule = require("ambient.schedule")
 
     local config_playlists = {}
     for path in pairs(playlists) do
         table.insert(config_playlists, {
-            abs_path = path,
-            ext = { "wav" },
+            abs_path        = path,
+            ext             = { "wav" },
             recursive_depth = 1,
-            sort_field = options.sort_field or "name",
-            sort_direction = "asc",
+            sort_field      = options.sort_field or "name",
+            sort_direction  = "asc",
         })
     end
     table.sort(config_playlists, function(a, b)
@@ -241,9 +241,9 @@ local function loadSchedule(options)
 
     local config = {
         playlists = config_playlists,
-        mode = options.mode or "without_interval_sequential",
-        interval = options.interval or { min_ms = 2000, max_ms = 2000 },
-        volume = 50,
+        mode      = options.mode or "without_interval_sequential",
+        interval  = options.interval or { min_ms = 2000, max_ms = 2000 },
+        volume    = 50,
     }
     return schedule, player, selector, timers, config, function(value)
         now = value
@@ -320,7 +320,7 @@ end)
 
 t.test("interval EOF waits and then advances", function()
     local schedule, player, _, _, config, setNow = loadSchedule({
-        mode = "interval_sequential",
+        mode     = "interval_sequential",
         interval = { min_ms = 2000, max_ms = 2000 },
     })
     schedule:setup(config)
@@ -355,11 +355,11 @@ end)
 t.test("schedule skips unavailable playlists when another playlist is usable", function()
     local schedule, _, _, _, config = loadSchedule()
     table.insert(config.playlists, {
-        abs_path = "/missing",
-        ext = { "wav" },
+        abs_path        = "/missing",
+        ext             = { "wav" },
         recursive_depth = 1,
-        sort_field = "name",
-        sort_direction = "asc",
+        sort_field      = "name",
+        sort_direction  = "asc",
     })
 
     local configured = schedule:setup(config)
@@ -368,7 +368,7 @@ t.test("schedule skips unavailable playlists when another playlist is usable", f
     t.eq(schedule:getStatus().playlist_count, 1)
     t.eq(schedule:getStatus().playlist_warnings, {
         {
-            path = "/missing",
+            path  = "/missing",
             error = "PATH_NOT_EXIST",
         },
     })
@@ -377,13 +377,13 @@ end)
 
 t.test("schedule reports every unavailable playlist when none can be loaded", function()
     local schedule, _, _, _, config = loadSchedule()
-    config.playlists = {
+    config.playlists                = {
         {
-            abs_path = "/missing",
-            ext = { "wav" },
+            abs_path        = "/missing",
+            ext             = { "wav" },
             recursive_depth = 1,
-            sort_field = "name",
-            sort_direction = "asc",
+            sort_field      = "name",
+            sort_direction  = "asc",
         },
     }
 

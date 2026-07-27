@@ -1,7 +1,7 @@
 local M = {}
 
 
-local result = require("ambient.result")
+local result = require("ambient.common.result")
 
 ---@class AmbientCoverPicture
 ---@field path string

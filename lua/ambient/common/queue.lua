@@ -1,4 +1,4 @@
-local result   = require("ambient.result")
+local result   = require("ambient.common.result")
 local newTable = require("table.new")
 
 ---@class QueueConfig

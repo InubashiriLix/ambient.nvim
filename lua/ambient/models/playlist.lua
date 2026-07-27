@@ -6,8 +6,8 @@
 
 local M = {}
 
-local result = require("ambient.result")
-local music  = require("ambient.music")
+local result = require("ambient.common.result")
+local music  = require("ambient.models.music")
 
 ---@enum AmbientPlayListError
 M.Error = {
