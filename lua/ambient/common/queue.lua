@@ -1,4 +1,7 @@
-local result   = require("ambient.result")
+--- useless
+--- but maybe, maybe one day.
+
+local result   = require("ambient.common.result")
 local newTable = require("table.new")
 
 ---@class QueueConfig

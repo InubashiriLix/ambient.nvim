@@ -1,7 +1,7 @@
 ---@author [InubashiriLix](https://github.com/InubashiriLix)
 ---@license [DBAD](https://github.com/philsturgeon/dbad)
 
-local result = require("ambient.result")
+local result = require("ambient.common.result")
 
 ---@alias AmbientPlayListIdMap table<string, AmbientPlayList>
 
@@ -173,7 +173,7 @@ function M:snapshot()
     end
 
     return result.ok({
-        playlists    = playlists,
+        playlists     = playlists,
         current_index = self.m_current_index,
     })
 end

@@ -2,14 +2,14 @@
 ---@author [InubashiriLix](https://github.com/InubashiriLix)
 ---@license [DBAD](https://github.com/philsturgeon/dbad)
 
-local result = require("ambient.result")
-local music  = require("ambient.music")
+local result = require("ambient.common.result")
+local music  = require("ambient.models.music")
 local player = require("ambient.player")
 
 local script_path = debug.getinfo(1, "S").source:sub(2)
 
 local function bonus_music_path()
-    local plugin_root = vim.fn.fnamemodify(script_path, ":p:h:h:h")
+    local plugin_root = vim.fn.fnamemodify(script_path, ":p:h:h:h:h")
     return plugin_root .. "/bonus/Me and the Birds.mp3"
 end
 

@@ -1,5 +1,5 @@
-local result   = require("ambient.result")
-local playlist = require("ambient.playlist")
+local result   = require("ambient.common.result")
+local playlist = require("ambient.models.playlist")
 local selector = require("ambient.playlist_selector")
 local player   = require("ambient.player")
 
@@ -510,7 +510,7 @@ end
 ---@param direction SortDirection
 ---@return boolean
 local function isValidSortMethod(field, direction)
-    local valid_field = field == playlist.SortField.name
+    local valid_field     = field == playlist.SortField.name
         or field == playlist.SortField.modify_time
         or field == playlist.SortField.create_time
         or field == playlist.SortField.random
@@ -648,11 +648,11 @@ function M:getStatus()
 
     local current_playlist = selector:current()
     if current_playlist.ok then
-        local playlist_value            = current_playlist.value
+        local playlist_value         = current_playlist.value
         ---@cast playlist_value AmbientPlayList
-        current_playlist_name           = playlist_value.name
-        current_playlist_path           = playlist_value.abs_path
-        current_playlist_music_count    = #playlist_value.musics
+        current_playlist_name        = playlist_value.name
+        current_playlist_path        = playlist_value.abs_path
+        current_playlist_music_count = #playlist_value.musics
     end
 
     if self.state == self.State.PLAYING then

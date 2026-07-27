@@ -1,7 +1,7 @@
 local M = {}
 
 local mpv    = require("ambient.mpv_ipc")
-local result = require("ambient.result")
+local result = require("ambient.common.result")
 local uv     = vim.uv or vim.loop
 
 ---@enum AmbientPlayerError

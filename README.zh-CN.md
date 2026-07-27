@@ -26,21 +26,24 @@
 排序方式。
 
 <!-- AMBIENT_DEMO_PLAYLISTS -->
-https://github.com/user-attachments/assets/eac41a34-67a3-41bc-9829-b81bedac1b90
+
+<https://github.com/user-attachments/assets/eac41a34-67a3-41bc-9829-b81bedac1b90>
 
 ### 选歌与排序
 
 选择显示排序方式后选歌，或者从当前播放列表的播放位置开始浏览并播放。
 
 <!-- AMBIENT_DEMO_TRACK_SELECTION -->
-https://github.com/user-attachments/assets/cdee5e17-bb9c-4316-ac77-94c221d5a0ce
+
+<https://github.com/user-attachments/assets/cdee5e17-bb9c-4316-ac77-94c221d5a0ce>
 
 ### 当前歌曲提示窗
 
 自动或手动显示短时角落提示窗，其中包含歌曲标题、艺术家、专辑和封面。
 
 <!-- AMBIENT_DEMO_TRACK_POPUP -->
-https://github.com/user-attachments/assets/0d403588-c8da-40d8-9ddf-19079b143cf4
+
+<https://github.com/user-attachments/assets/0d403588-c8da-40d8-9ddf-19079b143cf4>
 
 ### 状态栏进度
 
@@ -48,14 +51,16 @@ https://github.com/user-attachments/assets/0d403588-c8da-40d8-9ddf-19079b143cf4
 并支持运行时显示或隐藏。
 
 <!-- AMBIENT_DEMO_STATUSLINE_PROGRESS -->
-https://github.com/user-attachments/assets/43689280-f75f-4a6d-8507-93c3feb7331e
+
+<https://github.com/user-attachments/assets/43689280-f75f-4a6d-8507-93c3feb7331e>
 
 ### 命令、补全、状态与通知
 
 使用带补全的 `:Ambient` 命令树，查看调度器状态，并接收可配置的生命周期通知。
 
 <!-- AMBIENT_DEMO_COMMANDS -->
-https://github.com/user-attachments/assets/aed74d1e-7a12-4fe2-a9fd-03f5411f18ed
+
+<https://github.com/user-attachments/assets/aed74d1e-7a12-4fe2-a9fd-03f5411f18ed>
 
 ### 健康检查
 
@@ -185,24 +190,25 @@ interval = {
 
 ## 命令
 
-| 命令                                             | 作用                                   |
-| ------------------------------------------------ | -------------------------------------- |
-| `:Ambient start`                                 | 开始调度并播放。                       |
-| `:Ambient stop`                                  | 停止调度，并停止当前歌曲。             |
-| `:Ambient pause`                                 | 暂停当前歌曲。                         |
-| `:Ambient next`                                  | 立刻播放下一首。                       |
-| `:Ambient previous`                              | 播放历史中的上一首。                   |
-| `:Ambient status`                                | 显示当前状态。                         |
-| `:Ambient display`                               | 再次显示当前歌曲提示窗。               |
-| `:Ambient toggle pause`                          | 暂停、恢复，或立即开始播放。           |
-| `:Ambient toggle stop`                           | 在播放/等待和停止之间切换。            |
-| `:Ambient select playlist`                       | 选择当前播放列表及其播放排序方式。     |
-| `:Ambient select music`                          | 先选择显示排序，再选择并播放歌曲。     |
-| `:Ambient select current-playlist-music`         | 从当前播放位置选择并播放歌曲。         |
-| `:Ambient progress toggle`                       | 显示或隐藏状态栏进度组件。             |
-| `:Ambient sisyphus`                              | 播放西西弗斯彩蛋动画和音乐。           |
+| 命令                                     | 作用                               |
+| ---------------------------------------- | ---------------------------------- |
+| `:Ambient start`                         | 开始调度并播放。                   |
+| `:Ambient stop`                          | 停止调度，并停止当前歌曲。         |
+| `:Ambient pause`                         | 暂停当前歌曲。                     |
+| `:Ambient next`                          | 立刻播放下一首。                   |
+| `:Ambient previous`                      | 播放历史中的上一首。               |
+| `:Ambient status`                        | 显示当前状态。                     |
+| `:Ambient display`                       | 再次显示当前歌曲提示窗。           |
+| `:Ambient toggle pause`                  | 暂停、恢复，或立即开始播放。       |
+| `:Ambient toggle stop`                   | 在播放/等待和停止之间切换。        |
+| `:Ambient select playlist`               | 选择当前播放列表及其播放排序方式。 |
+| `:Ambient select music`                  | 先选择显示排序，再选择并播放歌曲。 |
+| `:Ambient select current-playlist-music` | 从当前播放位置选择并播放歌曲。     |
+| `:Ambient progress toggle`               | 显示或隐藏状态栏进度组件。         |
+| `:Ambient focus`                         | 使用内置音乐进行一次专注休息周期。 |
+| `:Ambient sisyphus`                      | 播放西西弗斯彩蛋动画和音乐。       |
 
-每一级子命令都支持补全。例如，在 `:Ambient select ` 后触发补全会列出所有选择
+每一级子命令都支持补全。例如，在 `:Ambient select` 后触发补全会列出所有选择
 命令。
 
 ### 命令迁移
@@ -321,20 +327,20 @@ progress = {
 
 内置进度样式：
 
-| 样式         | 形态                 |
-| ------------ | -------------------- |
-| `braille`    | 稀疏、无边框         |
-| `block`      | 旧版块状进度条       |
-| `line`       | 细线进度条           |
-| `dots`       | 圆点进度条           |
-| `squares`    | 方块进度条           |
-| `diamonds`   | 菱形进度条           |
-| `pipes`      | 竖条进度条           |
-| `ascii`      | ASCII 方括号进度条   |
-| `brackets`   | 经典方括号块状进度条 |
-| `angle`      | 尖括号细线进度条     |
-| `powerline`  | 使用 `` 的进度条外框 |
-| `separators` | 使用 `` 的进度条外框 |
+| 样式         | 形态                      |
+| ------------ | ------------------------- |
+| `braille`    | 稀疏、无边框              |
+| `block`      | 旧版块状进度条            |
+| `line`       | 细线进度条                |
+| `dots`       | 圆点进度条                |
+| `squares`    | 方块进度条                |
+| `diamonds`   | 菱形进度条                |
+| `pipes`      | 竖条进度条                |
+| `ascii`      | ASCII 方括号进度条        |
+| `brackets`   | 经典方括号块状进度条      |
+| `angle`      | 尖括号细线进度条          |
+| `powerline`  | 使用 `` 的进度条外框     |
+| `separators` | 使用 `` 的进度条外框     |
 | `rounded`    | 使用 ``/`` 的进度条外框 |
 | `slanted`    | 使用 ``/`` 的进度条外框 |
 
@@ -349,74 +355,74 @@ progress = {
 
 顶层选项：
 
-| 选项 | 含义 |
-| --- | --- |
-| `enable` | 为 `false` 时禁用插件。 |
-| `music_dir` | 单个音乐目录；未设置 `music_dirs` 和 `playlists` 时使用。 |
-| `music_dirs` | 多个音乐目录；会覆盖 `music_dir`。 |
-| `playlists` | 显式播放列表；会覆盖 `music_dir` 和 `music_dirs`。 |
-| `extensions` | 扫描目录时使用的文件扩展名。 |
-| `recursive_depth` | 目录扫描深度。 |
-| `mode` | 播放模式，见“播放模式”。 |
-| `volume` | `mpv --volume`，范围 `0` 到 `100`。 |
-| `interval.min_ms` | 每首歌结束后的最短安静间隔。 |
-| `interval.max_ms` | 每首歌结束后的最长安静间隔。 |
-| `show_notifications` | 开关所有通知的简写。 |
-| `show_notification.disable_all` | 禁用所有通知。 |
-| `show_notification.when_finish_setup` | setup 完成后通知。 |
-| `show_notification.when_show_total_music_count` | 显示扫描到的曲目数量。 |
-| `show_notification.when_start_playing` | 开始播放时通知。 |
-| `show_notification.when_toggle_playing_state` | 切换播放状态时通知。 |
-| `track_popup.enabled` | 切歌时是否显示当前歌曲提示窗。 |
-| `track_popup.duration_ms` | 显示时长（毫秒）；`0` 表示不自动关闭。 |
-| `track_popup.position` | `top_left`、`top_right`、`bottom_left` 或 `bottom_right`。 |
-| `track_popup.width` / `height` | 浮窗期望宽高，单位为终端单元格。 |
-| `track_popup.margin.row` / `.col` | 浮窗距所选角落的间距。 |
-| `track_popup.cover.backend` | `auto`、`image.nvim`、`ascii` 或 `none`。 |
+| 选项                                            | 含义                                                       |
+| ----------------------------------------------- | ---------------------------------------------------------- |
+| `enable`                                        | 为 `false` 时禁用插件。                                    |
+| `music_dir`                                     | 单个音乐目录；未设置 `music_dirs` 和 `playlists` 时使用。  |
+| `music_dirs`                                    | 多个音乐目录；会覆盖 `music_dir`。                         |
+| `playlists`                                     | 显式播放列表；会覆盖 `music_dir` 和 `music_dirs`。         |
+| `extensions`                                    | 扫描目录时使用的文件扩展名。                               |
+| `recursive_depth`                               | 目录扫描深度。                                             |
+| `mode`                                          | 播放模式，见“播放模式”。                                   |
+| `volume`                                        | `mpv --volume`，范围 `0` 到 `100`。                        |
+| `interval.min_ms`                               | 每首歌结束后的最短安静间隔。                               |
+| `interval.max_ms`                               | 每首歌结束后的最长安静间隔。                               |
+| `show_notifications`                            | 开关所有通知的简写。                                       |
+| `show_notification.disable_all`                 | 禁用所有通知。                                             |
+| `show_notification.when_finish_setup`           | setup 完成后通知。                                         |
+| `show_notification.when_show_total_music_count` | 显示扫描到的曲目数量。                                     |
+| `show_notification.when_start_playing`          | 开始播放时通知。                                           |
+| `show_notification.when_toggle_playing_state`   | 切换播放状态时通知。                                       |
+| `track_popup.enabled`                           | 切歌时是否显示当前歌曲提示窗。                             |
+| `track_popup.duration_ms`                       | 显示时长（毫秒）；`0` 表示不自动关闭。                     |
+| `track_popup.position`                          | `top_left`、`top_right`、`bottom_left` 或 `bottom_right`。 |
+| `track_popup.width` / `height`                  | 浮窗期望宽高，单位为终端单元格。                           |
+| `track_popup.margin.row` / `.col`               | 浮窗距所选角落的间距。                                     |
+| `track_popup.cover.backend`                     | `auto`、`image.nvim`、`ascii` 或 `none`。                  |
 
 播放列表选项：
 
-| 选项 | 含义 |
-| --- | --- |
-| `abs_path` | 播放列表根目录。 |
-| `ext` | 当前播放列表的扩展名。 |
-| `recursive_depth` | 当前播放列表的扫描深度。 |
-| `sort_field` | `name`、`modify_time`、`create_time` 或 `random`。 |
-| `sort_direction` | `asc` 或 `desc`。 |
+| 选项              | 含义                                               |
+| ----------------- | -------------------------------------------------- |
+| `abs_path`        | 播放列表根目录。                                   |
+| `ext`             | 当前播放列表的扩展名。                             |
+| `recursive_depth` | 当前播放列表的扫描深度。                           |
+| `sort_field`      | `name`、`modify_time`、`create_time` 或 `random`。 |
+| `sort_direction`  | `asc` 或 `desc`。                                  |
 
 只要至少有一个播放列表可用，不存在的播放列表目录会被跳过并给出警告；
 所有配置目录都不可用时，setup 才会失败。
 
 进度组件选项：
 
-| 选项 | 含义 |
-| --- | --- |
-| `progress.enabled` | setup 后是否显示状态栏组件。 |
-| `progress.layout.width` | ambient 组件文本的固定显示宽度。 |
-| `progress.track.enabled` | 是否显示当前歌曲标题。 |
-| `progress.track.width` | 当前歌曲名最多占用的宽度。 |
-| `progress.track.scroll` | 歌曲名过长时是否滚动显示。 |
-| `progress.track.scroll_separator` | 滚动时重复歌曲名之间的分隔文本。 |
-| `progress.bar.enabled` | 是否显示进度条和百分比。 |
-| `progress.bar.style` | 内置进度条样式或别名。 |
-| `progress.bar.width` | 进度条主体宽度。 |
-| `progress.bar.filled` | 已播放部分字符，必须占一个显示单元。 |
-| `progress.bar.empty` | 未播放部分字符，必须占一个显示单元。 |
-| `progress.bar.left` | 只包裹进度条的左侧字符。 |
-| `progress.bar.right` | 只包裹进度条的右侧字符。 |
-| `progress.time.enabled` | 是否显示已播放/总时长。 |
-| `progress.refresh.interval_ms` | 状态栏刷新间隔，单位毫秒。 |
-| `progress.component.frame.enabled` | 是否启用渲染在 `layout.width` 内部的文本外框。 |
-| `progress.component.frame.left` | 文本外框左侧字符串。 |
-| `progress.component.frame.right` | 文本外框右侧字符串。 |
-| `progress.component.frame.padding` | 文本外框和内容之间的填充。 |
-| `progress.component.separator.left` | 当前 lualine 组件的左侧分隔符覆盖项；不设置 `separator` 则继承 lualine。 |
-| `progress.component.separator.right` | 当前 lualine 组件的右侧分隔符覆盖项；不设置 `separator` 则继承 lualine。 |
-| `progress.component.padding` | 当前 lualine 组件的 padding 覆盖项，可为数字或 `{ left = N, right = N }`。 |
-| `progress.highlight.default.fg` | 默认前景色。 |
-| `progress.highlight.default.bg` | 默认背景色。 |
-| `progress.highlight.default.gui` | 默认字体样式：`none`、`bold`、`italic`、`underline`、`undercurl` 或 `strikethrough`。 |
-| `progress.highlight.states` | 各状态颜色覆盖：`ready`、`playing`、`interval`、`stopped`、`paused`、`next`、`error`。 |
+| 选项                                 | 含义                                                                                   |
+| ------------------------------------ | -------------------------------------------------------------------------------------- |
+| `progress.enabled`                   | setup 后是否显示状态栏组件。                                                           |
+| `progress.layout.width`              | ambient 组件文本的固定显示宽度。                                                       |
+| `progress.track.enabled`             | 是否显示当前歌曲标题。                                                                 |
+| `progress.track.width`               | 当前歌曲名最多占用的宽度。                                                             |
+| `progress.track.scroll`              | 歌曲名过长时是否滚动显示。                                                             |
+| `progress.track.scroll_separator`    | 滚动时重复歌曲名之间的分隔文本。                                                       |
+| `progress.bar.enabled`               | 是否显示进度条和百分比。                                                               |
+| `progress.bar.style`                 | 内置进度条样式或别名。                                                                 |
+| `progress.bar.width`                 | 进度条主体宽度。                                                                       |
+| `progress.bar.filled`                | 已播放部分字符，必须占一个显示单元。                                                   |
+| `progress.bar.empty`                 | 未播放部分字符，必须占一个显示单元。                                                   |
+| `progress.bar.left`                  | 只包裹进度条的左侧字符。                                                               |
+| `progress.bar.right`                 | 只包裹进度条的右侧字符。                                                               |
+| `progress.time.enabled`              | 是否显示已播放/总时长。                                                                |
+| `progress.refresh.interval_ms`       | 状态栏刷新间隔，单位毫秒。                                                             |
+| `progress.component.frame.enabled`   | 是否启用渲染在 `layout.width` 内部的文本外框。                                         |
+| `progress.component.frame.left`      | 文本外框左侧字符串。                                                                   |
+| `progress.component.frame.right`     | 文本外框右侧字符串。                                                                   |
+| `progress.component.frame.padding`   | 文本外框和内容之间的填充。                                                             |
+| `progress.component.separator.left`  | 当前 lualine 组件的左侧分隔符覆盖项；不设置 `separator` 则继承 lualine。               |
+| `progress.component.separator.right` | 当前 lualine 组件的右侧分隔符覆盖项；不设置 `separator` 则继承 lualine。               |
+| `progress.component.padding`         | 当前 lualine 组件的 padding 覆盖项，可为数字或 `{ left = N, right = N }`。             |
+| `progress.highlight.default.fg`      | 默认前景色。                                                                           |
+| `progress.highlight.default.bg`      | 默认背景色。                                                                           |
+| `progress.highlight.default.gui`     | 默认字体样式：`none`、`bold`、`italic`、`underline`、`undercurl` 或 `strikethrough`。  |
+| `progress.highlight.states`          | 各状态颜色覆盖：`ready`、`playing`、`interval`、`stopped`、`paused`、`next`、`error`。 |
 
 ## 检查
 
@@ -435,4 +441,4 @@ progress = {
 :help ambient-progress
 ```
 
-仓库内也带了 `test-music/ambient-test.wav`，可以用来快速测试播放和状态栏进度。
+仓库内也带了 `default_assets/ambient-test.wav`，可以用来快速测试播放和状态栏进度。

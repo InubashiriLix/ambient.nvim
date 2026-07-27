@@ -1,5 +1,5 @@
 local t      = require("tests.testlib")
-local result = require("ambient.result")
+local result = require("ambient.common.result")
 
 local function loadPlayer(options)
     options = options or {}
@@ -92,7 +92,7 @@ local function loadPlayer(options)
             end
             return copied
         end,
-        api = {
+        api      = {
             nvim_exec_autocmds = function(event, opts)
                 if event == "User" then
                     table.insert(user_events, opts.pattern)

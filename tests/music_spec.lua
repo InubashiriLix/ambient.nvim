@@ -20,13 +20,13 @@ local function loadMusic()
         },
     }
 
-    t.clearModules("ambient.music")
-    return require("ambient.music"), deleted
+    t.clearModules("ambient.models.music")
+    return require("ambient.models.music"), deleted
 end
 
 t.test("music initializes optional metadata and cover fields", function()
     local music   = loadMusic()
-    local created = music:new("test-music/ambient-test.wav")
+    local created = music:new("default_assets/ambient-test.wav")
 
     t.truthy(created.ok)
     t.eq(created.value.album_name, nil)
@@ -36,7 +36,7 @@ end)
 
 t.test("music releases its cover without changing persistent metadata", function()
     local music, deleted = loadMusic()
-    local created        = music:new("test-music/ambient-test.wav")
+    local created        = music:new("default_assets/ambient-test.wav")
     local item           = created.value
 
     item.album_name  = "Ambient Album"

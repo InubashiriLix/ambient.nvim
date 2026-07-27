@@ -208,8 +208,8 @@ local function loadPopup(options)
     }
 
     package.loaded.image = options.image
-    t.clearModules("ambient.track_popup")
-    local popup = require("ambient.track_popup")
+    t.clearModules("ambient.components.track_popup")
+    local popup = require("ambient.components.track_popup")
     return popup, buffers, windows, timers
 end
 

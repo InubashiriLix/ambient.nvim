@@ -2,7 +2,7 @@ local M = {}
 
 -- old api compatibility
 local uv     = vim.uv or vim.loop
-local result = require("ambient.result")
+local result = require("ambient.common.result")
 
 ---@enum AmbientMpvIpcError
 M.Error = {

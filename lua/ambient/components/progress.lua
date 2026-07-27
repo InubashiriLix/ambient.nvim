@@ -1,8 +1,8 @@
 local M = {}
 
-local result          = require("ambient.result")
+local result          = require("ambient.common.result")
 local schedule        = require("ambient.schedule")
-local progress_styles = require("ambient.progress_styles")
+local progress_styles = require("ambient.components.progress_styles")
 
 local uv = vim.uv or vim.loop
 
@@ -295,7 +295,7 @@ local function componentColor()
     local colors   = M.config.highlight.states or {}
     local status   = schedule:getStatus()
     local state    = status.last_error ~= nil and "error" or
-    tostring(status.state or "default"):lower()
+        tostring(status.state or "default"):lower()
     local override = colors[state] or colors.default
     if type(override) == "table" then
         return vim.tbl_deep_extend("force", base, override)

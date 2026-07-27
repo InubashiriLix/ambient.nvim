@@ -1,9 +1,9 @@
-local result          = require("ambient.result")
-local playlist_module = require("ambient.playlist")
+local result          = require("ambient.common.result")
+local playlist_module = require("ambient.models.playlist")
 local selector        = require("ambient.playlist_selector")
 ---@type AmbientSchedule
 local schedule        = require("ambient.schedule")
-local progress        = require("ambient.progress")
+local progress        = require("ambient.components.progress")
 
 local M = {}
 
@@ -175,7 +175,7 @@ function M.select_playlist(notify)
         end
 
         local current_field, current_direction = choice.playlist:getSortMethod()
-        local sort_choice, sort_error = awaitSelect(playlist_module.getSortMethodTable(), {
+        local sort_choice, sort_error          = awaitSelect(playlist_module.getSortMethodTable(), {
             prompt      = "Select Sort Method",
             kind        = "ambient_music_sort_selector",
             format_item = function(item)
@@ -227,7 +227,7 @@ function M.select_music(notify)
 
     return run(function()
         local current_field, current_direction = active_playlist:getSortMethod()
-        local sort_choice, sort_error = awaitSelect(playlist_module.getSortMethodTable(), {
+        local sort_choice, sort_error          = awaitSelect(playlist_module.getSortMethodTable(), {
             prompt      = "Sort music",
             kind        = "ambient_music_sort_selector",
             format_item = function(item)

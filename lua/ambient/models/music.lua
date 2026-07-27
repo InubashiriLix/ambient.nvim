@@ -1,7 +1,7 @@
 local M = {}
 
 
-local result = require("ambient.result")
+local result = require("ambient.common.result")
 
 ---@class AmbientCoverPicture
 ---@field path string
@@ -11,6 +11,9 @@ local result = require("ambient.result")
 ---@field source "embedded"|"external"
 ---@field temporary boolean
 
+--- fat instance style, may be shit to write, but safer
+--- lsp can find out what field you didn't assign
+--- the bad news is that we copy everything, only suitable for small model like this.
 ---@class AmbientMusic
 ---@field name string
 ---@field abs_path string

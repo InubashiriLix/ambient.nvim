@@ -2,14 +2,17 @@ local M = {}
 
 require("ambient.typedef")
 
-local result      = require("ambient.result")
+local result      = require("ambient.common.result")
 local config      = require("ambient.config")
-local progress    = require("ambient.progress")
+local player      = require("ambient.player")
+local progress    = require("ambient.components.progress")
 local schedule    = require("ambient.schedule")
 local selection   = require("ambient.selection")
-local track_popup = require("ambient.track_popup")
+local track_popup = require("ambient.components.track_popup")
 
-local sysiphus = require("ambient.sysiphus")
+-- bonus
+local focus    = require("ambient.bonus.focus")
+local sysiphus = require("ambient.bonus.sysiphus")
 
 local commands_registered     = false
 local popup_events_registered = false
@@ -32,8 +35,9 @@ local function registerPopupEvents()
         pattern  = "AmbientTrackChanged",
         desc     = "Show the ambient.nvim track popup",
         callback = function()
-            if schedule.current_music ~= nil then
-                track_popup:show(schedule.current_music)
+            local item = player.state.current or schedule.current_music
+            if item ~= nil then
+                track_popup:show(item)
             end
         end,
     })
@@ -43,7 +47,7 @@ local function registerPopupEvents()
         pattern  = "AmbientTrackInfoUpdated",
         desc     = "Refresh ambient.nvim track metadata and cover art",
         callback = function()
-            local item = schedule.current_music
+            local item = player.state.current or schedule.current_music
             if item == nil
                 or not track_popup:is_open()
                 or track_popup.current_key ~= (item.abs_path or item.name)
@@ -63,7 +67,7 @@ local function registerPopupEvents()
         pattern  = "AmbientStateChanged",
         desc     = "Close the ambient.nvim track popup when playback ends",
         callback = function()
-            if schedule.current_music == nil then
+            if player.state.current == nil and schedule.current_music == nil then
                 track_popup:close("playback-ended")
             end
         end,
@@ -261,6 +265,11 @@ function M.register_commands()
                 },
             },
             -- bonus
+            focus    = {
+                run = function()
+                    reportResult(M.start_focus_epoch(), "Ambient focus epoch started")
+                end,
+            },
             sisyphus = {
                 run = function()
                     reportResult(sysiphus:display())
@@ -480,11 +489,29 @@ end
 ---@param duration_ms? integer
 ---@return AmbientResult<nil, any>
 function M.show_current_track(duration_ms)
-    if schedule.current_music == nil then
+    local item = player.state.current or schedule.current_music
+    if item == nil then
         return result.err("NO_CURRENT_MUSIC")
     end
 
-    return track_popup:show(schedule.current_music, duration_ms)
+    return track_popup:show(item, duration_ms)
+end
+
+---@return AmbientResult<nil, any>
+function M.start_focus_epoch()
+    local stopped = schedule:stop()
+    if not stopped.ok then
+        return stopped
+    end
+
+    if not focus.initialized then
+        local initialized = focus:init()
+        if not initialized.ok then
+            return initialized
+        end
+    end
+
+    return focus:startOneFocusEpoch()
 end
 
 ---@param index integer

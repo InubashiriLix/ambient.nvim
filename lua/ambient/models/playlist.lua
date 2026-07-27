@@ -6,8 +6,8 @@
 
 local M = {}
 
-local result = require("ambient.result")
-local music  = require("ambient.music")
+local result = require("ambient.common.result")
+local music  = require("ambient.models.music")
 
 ---@enum AmbientPlayListError
 M.Error = {
@@ -167,7 +167,7 @@ end
 
 
 ---@param abs_path string
----@param ext string[]
+---@param ext string[]?
 ---@param recursive_depth integer | nil
 ---@param sort_field SortField | nil
 ---@param sort_direction SortDirection | nil
