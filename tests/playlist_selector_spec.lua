@@ -1,178 +1,86 @@
 local t = require("tests.testlib")
-local result = require("ambient.result")
 
-local playlist_module = {
-    SortField = {
-        name = "name",
-        create_time = "create_time",
-        modify_time = "modify_time",
-        random = "random",
-    },
-    SortDirection = {
-        asc = "asc",
-        desc = "desc",
-    },
-}
-
-function playlist_module.getSortMethodTable()
-    return {
-        { field = playlist_module.SortField.name, direction = playlist_module.SortDirection.desc },
-    }
-end
-
-local function makePlaylist(path, names)
+local function playlist(path, count)
     local musics = {}
-    local sorted_indices = {}
-    for index, name in ipairs(names) do
-        musics[index] = { name = name, abs_path = path .. "/" .. name .. ".wav" }
-        sorted_indices[index] = index
+    for index = 1, count do
+        musics[index] = { name = "track-" .. tostring(index) }
     end
 
     local item = {
         abs_path = path,
-        name = path:match("([^/]+)$"),
-        musics = musics,
-        sorted_indices = sorted_indices,
-        cursor = 1,
+        name     = path:match("([^/]+)$"),
+        musics   = musics,
     }
-
     function item:isEmpty()
         return #self.musics == 0
     end
-
-    function item:getSortMethod()
-        return playlist_module.SortField.name, playlist_module.SortDirection.asc
-    end
-
-    function item:getSortedSnapshot()
-        local snapshot = {}
-        for source_index = #self.musics, 1, -1 do
-            table.insert(snapshot, {
-                position = #snapshot + 1,
-                source_index = source_index,
-                music = self.musics[source_index],
-            })
-        end
-        return result.ok(snapshot)
-    end
-
-    function item:setCursor(cursor)
-        self.cursor = cursor
-        return result.ok(nil)
-    end
-
     return item
 end
 
-local function loadSelector(select_ui)
-    _G.vim = { ui = { select = select_ui } }
-    package.loaded["ambient.playlist"] = playlist_module
+local function loadSelector()
     t.clearModules("ambient.playlist_selector")
-    return require("ambient.playlist_selector")
+    local selector = require("ambient.playlist_selector")
+    selector:reset()
+    return selector
 end
 
-t.test("sorted music selector prompts for sorting before music", function()
-    local prompts = {}
-    local selector = loadSelector(function(items, opts, on_select)
-        table.insert(prompts, opts.kind)
-        on_select(items[1])
-    end)
+t.test("playlist selector exposes an ordered state snapshot", function()
+    local selector = loadSelector()
+    local empty    = playlist("/empty", 0)
+    local first    = playlist("/first", 2)
+    local second   = playlist("/second", 1)
 
-    local current = makePlaylist("/current", { "a", "b" })
-    selector:reset()
-    t.truthy(selector:addPlayList(current).ok)
+    t.truthy(selector:add(empty).ok)
+    t.truthy(selector:add(first).ok)
+    t.truthy(selector:add(second).ok)
     t.truthy(selector:setup().ok)
 
-    local selected_music
-    local displayed = selector:displayMusicItemSelectUi(function(selected)
-        t.truthy(selected.ok)
-        selected_music = selected.value
-    end)
+    local snapshot = selector:snapshot()
+    t.truthy(snapshot.ok)
+    t.eq(snapshot.value.current_index, 2)
+    t.eq(snapshot.value.playlists, { empty, first, second })
+    t.eq(selector:current().value, first)
 
-    t.truthy(displayed.ok)
-    t.eq(prompts, { "ambient_music_sort_selector", "ambient_music_selector" })
-    t.eq(selected_music, current.musics[2])
-    t.eq(current.cursor, 2)
+    snapshot.value.playlists[1] = nil
+    t.eq(selector:snapshot().value.playlists, { empty, first, second })
 end)
 
-t.test("current playlist selector preserves order and moves the initial cursor", function()
-    local prompts = {}
-    local displayed_items
-    local initial_index
-    local snacks_cursor
-    local selector = loadSelector(function(items, opts, on_select)
-        table.insert(prompts, opts.kind)
-        displayed_items = items
-        initial_index = opts.initial_index
-        opts.snacks.on_show({
-            list = {
-                view = function(_, index)
-                    snacks_cursor = index
-                end,
-            },
-        })
-        on_select(items[initial_index])
-    end)
-
-    local registered = makePlaylist("/registered", { "registered" })
-    local current = makePlaylist("/current", { "a", "b", "c" })
-    current.cursor = 2
-    selector:reset()
-    selector:addPlayList(registered)
+t.test("playlist selector changes the current non-empty playlist", function()
+    local selector = loadSelector()
+    local first    = playlist("/first", 1)
+    local second   = playlist("/second", 1)
+    selector:add(first)
+    selector:add(second)
     selector:setup()
 
-    local selected_music
-    local displayed = selector:displayCurrentPlayListMusicItemSelectUi(current, function(selected)
-        t.truthy(selected.ok)
-        selected_music = selected.value
-    end)
-
-    t.truthy(displayed.ok)
-    t.eq(prompts, { "ambient_current_playlist_music_selector" })
-    t.eq(displayed_items[1].music, current.musics[1])
-    t.eq(displayed_items[2].music, current.musics[2])
-    t.eq(displayed_items[3].music, current.musics[3])
-    t.eq(initial_index, 2)
-    t.eq(snacks_cursor, 2)
-    t.eq(selected_music, current.musics[2])
-    t.eq(current.cursor, 2)
-    t.eq(registered.cursor, 1)
+    t.truthy(selector:select(2).ok)
+    t.eq(selector:current().value, second)
+    t.eq(selector:snapshot().value.current_index, 2)
 end)
 
-t.test("current playlist selector focuses the playing track before the next cursor", function()
-    local initial_index
-    local selector = loadSelector(function(items, opts, on_select)
-        initial_index = opts.initial_index
-        on_select(nil)
-    end)
-    local current = makePlaylist("/current", { "a", "b", "c" })
-    current.cursor = 2
-    selector:reset()
-    selector:addPlayList(current)
+t.test("playlist selector rejects invalid and empty selections", function()
+    local selector = loadSelector()
+    selector:add(playlist("/first", 1))
+    selector:add(playlist("/empty", 0))
     selector:setup()
 
-    local displayed = selector:displayCurrentPlayListMusicItemSelectUi(
-        current,
-        nil,
-        current.musics[1]
-    )
-
-    t.truthy(displayed.ok)
-    t.eq(initial_index, 1)
+    t.eq(selector:select(0).err, "INVALID_INDEX")
+    t.eq(selector:select(3).err, "INVALID_INDEX")
+    t.eq(selector:select(1.5).err, "INVALID_INDEX")
+    t.eq(selector:select(2).err, "EMPTY_PLAYLIST")
+    t.eq(selector:snapshot().value.current_index, 1)
 end)
 
-t.test("current playlist music selector rejects an empty playlist before opening UI", function()
-    local ui_opened = false
-    local selector = loadSelector(function()
-        ui_opened = true
-    end)
-    local registered = makePlaylist("/registered", { "registered" })
-    selector:reset()
-    selector:addPlayList(registered)
-    selector:setup()
+t.test("playlist selector enforces setup and duplicate invariants", function()
+    local selector = loadSelector()
+    t.eq(selector:current().err, "INVALID_STATE")
+    t.eq(selector:snapshot().err, "INVALID_STATE")
+    t.eq(selector:setup().err, "NO_PLAYLISTS")
 
-    local displayed = selector:displayCurrentPlayListMusicItemSelectUi(makePlaylist("/empty", {}))
-    t.falsy(displayed.ok)
-    t.eq(displayed.err, "EMPTY_PLAYLIST")
-    t.falsy(ui_opened)
+    selector:reset()
+    t.truthy(selector:add(playlist("/one/library", 1)).ok)
+    t.eq(selector:add(playlist("/two/library", 1)).err, "DUPLICATE_PLAYLIST")
+    t.eq(selector:add(playlist("/", 1)).err, "INVALID_PATH")
+    t.truthy(selector:setup().ok)
+    t.eq(selector:add(playlist("/later", 1)).err, "INVALID_STATE")
 end)

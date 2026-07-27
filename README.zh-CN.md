@@ -22,7 +22,8 @@
 
 ### 播放列表
 
-从单个目录、多个目录或完整播放列表加载音乐，并交互式切换当前播放列表。
+从单个目录、多个目录或完整播放列表加载音乐，并交互式选择当前播放列表及其播放
+排序方式。
 
 <!-- AMBIENT_DEMO_PLAYLISTS -->
 https://github.com/user-attachments/assets/eac41a34-67a3-41bc-9829-b81bedac1b90
@@ -195,7 +196,7 @@ interval = {
 | `:Ambient display`                               | 再次显示当前歌曲提示窗。               |
 | `:Ambient toggle pause`                          | 暂停、恢复，或立即开始播放。           |
 | `:Ambient toggle stop`                           | 在播放/等待和停止之间切换。            |
-| `:Ambient select playlist`                       | 选择当前播放列表。                     |
+| `:Ambient select playlist`                       | 选择当前播放列表及其播放排序方式。     |
 | `:Ambient select music`                          | 先选择显示排序，再选择并播放歌曲。     |
 | `:Ambient select current-playlist-music`         | 从当前播放位置选择并播放歌曲。         |
 | `:Ambient progress toggle`                       | 显示或隐藏状态栏进度组件。             |
@@ -215,8 +216,8 @@ interval = {
 `:Ambient toggle pause` 或 `require("ambient").toggle_pause_resume()`。
 
 配置多个播放列表时，setup 后默认选择第一个非空列表。`:Ambient select playlist`
-通过 `vim.ui.select()` 切换播放列表；当前播放或等待会停止，调度器使用新列表
-回到 `READY` 状态。
+通过 `vim.ui.select()` 依次选择播放列表及其播放排序方式；当前播放或等待会停止，
+调度器使用新列表回到 `READY` 状态。
 
 `:Ambient select music` 会先选择列表的显示排序方式，再从当前播放列表选择歌曲并
 立刻播放。

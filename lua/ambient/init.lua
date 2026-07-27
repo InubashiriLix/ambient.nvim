@@ -6,6 +6,7 @@ local result      = require("ambient.result")
 local config      = require("ambient.config")
 local progress    = require("ambient.progress")
 local schedule    = require("ambient.schedule")
+local selection   = require("ambient.selection")
 local track_popup = require("ambient.track_popup")
 
 local sysiphus = require("ambient.sysiphus")
@@ -500,45 +501,21 @@ end
 ---@return AmbientResult<nil, any>
 function M.select_playlist_ui()
     return withReady(function()
-        return schedule:displayPlaylistSelectorUi(function(selected)
-            if not selected.ok then
-                reportResult(selected)
-                return
-            end
-
-            progress:refresh()
-            notify("Ambient playlist: " .. selected.value.name)
-        end)
+        return selection.select_playlist(notify)
     end)
 end
 
 ---@return AmbientResult<nil, any>
 function M.select_music_item()
     return withReady(function()
-        return schedule:displayMusicSelectorUi(function(selected)
-            if not selected.ok then
-                reportResult(selected)
-                return
-            end
-
-            progress:refresh()
-            notify("Ambient music: " .. selected.value.name)
-        end)
+        return selection.select_music(notify)
     end)
 end
 
 ---@return AmbientResult<nil, any>
 function M.select_current_playlist_music_item()
     return withReady(function()
-        return schedule:displayCurrentPlaylistMusicSelectorUi(function(selected)
-            if not selected.ok then
-                reportResult(selected)
-                return
-            end
-
-            progress:refresh()
-            notify("Ambient music: " .. selected.value.name)
-        end)
+        return selection.select_current_playlist_music(notify)
     end)
 end
 

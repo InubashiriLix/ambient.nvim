@@ -145,8 +145,9 @@ COMMANDS                                                 *ambient-commands*
         is considered active and is stopped.
 
     select playlist
-        Select the active playlist with |vim.ui.select()|. Current playback or
-        an interval is stopped, and the scheduler returns to READY.
+        Select the active playlist and its playback sorting method with
+        |vim.ui.select()|. Current playback or an interval is stopped, and the
+        scheduler returns to READY.
 
     select music
         Choose a display sort order, then select and immediately play a track
@@ -231,7 +232,8 @@ Use explicit playlists:
 <
 
 The first non-empty configured playlist is active after setup. Use
-":Ambient select playlist" (see |:Ambient|) to select another playlist.
+":Ambient select playlist" (see |:Ambient|) to select another playlist and its
+playback sorting method.
 
 Playlist fields:
 
@@ -656,7 +658,8 @@ require("ambient").select_playlist(index)              *ambient.select_playlist(
     Select the active playlist by its one-based index.
 
 require("ambient").select_playlist_ui()                *ambient.select_playlist_ui()*
-    Open |vim.ui.select()| to choose the active playlist.
+    Open |vim.ui.select()| to choose the active playlist and then its playback
+    sorting method.
 
 require("ambient").select_music_item()                 *ambient.select_music_item()*
     Choose a display sort order, then select and immediately play a track from

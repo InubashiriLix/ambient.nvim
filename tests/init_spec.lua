@@ -74,17 +74,22 @@ local function loadAmbient(options)
     function schedule:toggleStartStop()
         return result.ok(nil)
     end
-    function schedule:selectPlaylist()
-        return result.ok(nil)
+    function schedule:selectPlaylist(index, field, direction, expected_playlist)
+        self.selected_playlist = {
+            index             = index,
+            field             = field,
+            direction         = direction,
+            expected_playlist = expected_playlist,
+        }
+        return options.select_playlist_result or result.ok(nil)
     end
-    function schedule:displayPlaylistSelectorUi()
-        return result.ok(nil)
-    end
-    function schedule:displayMusicSelectorUi()
-        return result.ok(nil)
-    end
-    function schedule:displayCurrentPlaylistMusicSelectorUi()
-        return result.ok(nil)
+    function schedule:playSelectedMusic(playlist, source_index)
+        self.selected_music = {
+            playlist    = playlist,
+            source_index = source_index,
+        }
+        return options.play_selected_result
+            or result.ok(playlist.musics[source_index])
     end
     function schedule:getStatus()
         return self.status_value
@@ -151,6 +156,32 @@ local function loadAmbient(options)
         return self.open
     end
 
+    local selection = {
+        calls = {
+            playlist       = 0,
+            music          = 0,
+            current_music  = 0,
+        },
+    }
+
+    function selection.select_playlist(notify_fn)
+        selection.calls.playlist = selection.calls.playlist + 1
+        selection.notify         = notify_fn
+        return options.select_playlist_ui_result or result.ok(nil)
+    end
+
+    function selection.select_music(notify_fn)
+        selection.calls.music = selection.calls.music + 1
+        selection.notify      = notify_fn
+        return options.select_music_ui_result or result.ok(nil)
+    end
+
+    function selection.select_current_playlist_music(notify_fn)
+        selection.calls.current_music = selection.calls.current_music + 1
+        selection.notify              = notify_fn
+        return options.select_current_music_ui_result or result.ok(nil)
+    end
+
     _G.vim = {
         g = {},
         log = { levels = { INFO = 1, ERROR = 2 } },
@@ -179,6 +210,7 @@ local function loadAmbient(options)
 
     package.loaded["ambient.config"] = config
     package.loaded["ambient.schedule"] = schedule
+    package.loaded["ambient.selection"] = selection
     package.loaded["ambient.progress"] = progress
     package.loaded["ambient.track_popup"] = display
     t.clearModules("ambient.init")
@@ -192,7 +224,8 @@ local function loadAmbient(options)
         end,
         command_options,
         display,
-        autocmds
+        autocmds,
+        selection
 end
 
 t.test("init replaces flat commands with the Ambient command tree", function()
@@ -239,23 +272,39 @@ t.test("track events show and refresh the popup", function()
 end)
 
 t.test("init routes sorted and current-playlist music commands separately", function()
-    local ambient, schedule, commands = loadAmbient()
+    local ambient, _, commands, _, _, _, _, _, selection = loadAmbient()
     ambient.register_commands()
 
-    local sorted_calls = 0
-    local current_calls = 0
-    function schedule:displayMusicSelectorUi()
-        sorted_calls = sorted_calls + 1
-        return result.ok(nil)
-    end
-    function schedule:displayCurrentPlaylistMusicSelectorUi()
-        current_calls = current_calls + 1
-        return result.ok(nil)
-    end
     commands.Ambient({ args = "select music" })
     commands.Ambient({ args = "select current-playlist-music" })
-    t.eq(sorted_calls, 1)
-    t.eq(current_calls, 1)
+    t.eq(selection.calls.music, 1)
+    t.eq(selection.calls.current_music, 1)
+end)
+
+t.test("init selection entry points only delegate the workflow", function()
+    local ambient, _, _, _, refreshCount, _, _, _, selection = loadAmbient()
+    t.truthy(ambient.select_playlist_ui().ok)
+    t.truthy(ambient.select_music_item().ok)
+    t.truthy(ambient.select_current_playlist_music_item().ok)
+    t.eq(selection.calls.playlist, 1)
+    t.eq(selection.calls.music, 1)
+    t.eq(selection.calls.current_music, 1)
+    t.eq(refreshCount(), 0)
+end)
+
+t.test("Ambient command reports an immediate selection setup failure", function()
+    local ambient, _, commands, notifications = loadAmbient({
+        config = {
+            enable = true,
+            show_notification = { disable_all = false },
+        },
+        select_music_ui_result = result.err("SELECTION_NOT_READY"),
+    })
+    ambient.register_commands()
+
+    commands.Ambient({ args = "select music" })
+    t.eq(#notifications, 1)
+    t.truthy(notifications[1]:match("SELECTION_NOT_READY"))
 end)
 
 t.test("Ambient command completion follows the command tree", function()

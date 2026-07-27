@@ -79,6 +79,8 @@ local State = {
 ---@field last_error? string
 ---@field playlist_warnings AmbientPlaylistWarning[]
 ---@field random_seed_initialized boolean
+---@field selectPlaylist fun(self: AmbientSchedule, index: integer, sort_field?: SortField, sort_direction?: SortDirection, expected_playlist?: AmbientPlayList): AmbientResult<nil, AmbientPlayListSelectorError>
+---@field playSelectedMusic fun(self: AmbientSchedule, selected_playlist: AmbientPlayList, source_index: integer): AmbientResult<AmbientMusic, AmbientPlayListSelectorError|AmbientScheduleError>
 local M = {
     Error                   = Error,
     State                   = State,
@@ -314,9 +316,9 @@ local function playAdjacent(direction, discard_future)
         if from_future then
             entry = M.future[#M.future]
         else
-            local selected = selector:getCurrentPlayListValue()
-            if selected ~= nil then
-                entry = takeMusicFromPlaylist(selected)
+            local selected = selector:current()
+            if selected.ok then
+                entry = takeMusicFromPlaylist(selected.value)
             end
         end
         if entry == nil then
@@ -402,7 +404,7 @@ function M:setup(config)
                 error = created.err,
             })
         else
-            local added = selector:addPlayList(created.value)
+            local added = selector:add(created.value)
             if not added.ok then
                 return fail(self.Error.PLAYLIST_SELECTOR_ERROR, tostring(added.err))
             end
@@ -504,78 +506,104 @@ function M:previous()
     return playAdjacent("previous")
 end
 
+---@param field SortField
+---@param direction SortDirection
+---@return boolean
+local function isValidSortMethod(field, direction)
+    local valid_field = field == playlist.SortField.name
+        or field == playlist.SortField.modify_time
+        or field == playlist.SortField.create_time
+        or field == playlist.SortField.random
+    local valid_direction = direction == playlist.SortDirection.asc
+        or direction == playlist.SortDirection.desc
+    return valid_field and valid_direction
+end
+
 ---@param index integer
+---@param sort_field? SortField
+---@param sort_direction? SortDirection
+---@param expected_playlist? AmbientPlayList
 ---@return AmbientResult<nil, AmbientPlayListSelectorError>
-function M:selectPlaylist(index)
-    local selected = selector:setCurrentPlaylist(index)
+function M:selectPlaylist(index, sort_field, sort_direction, expected_playlist)
+    if (sort_field == nil) ~= (sort_direction == nil) then
+        return result.err("INVALID_SORT")
+    end
+
+    if sort_field ~= nil then
+        ---@cast sort_direction SortDirection
+        if not isValidSortMethod(sort_field, sort_direction) then
+            return result.err("INVALID_SORT")
+        end
+    end
+
+    if expected_playlist ~= nil then
+        local snapshot = selector:snapshot()
+        if not snapshot.ok then
+            return result.err(snapshot.err)
+        end
+        if snapshot.value.playlists[index] ~= expected_playlist then
+            return result.err("INVALID_INDEX")
+        end
+    end
+
+    local selected = selector:select(index)
     if not selected.ok then
         return selected
+    end
+
+    if sort_field ~= nil then
+        ---@cast sort_direction SortDirection
+        local current = selector:current()
+        if not current.ok then
+            return result.err(current.err)
+        end
+        current.value:setSortMethod(sort_field, sort_direction)
     end
 
     resetToReadyAfterPlaylistSelection()
     return result.ok(nil)
 end
 
----@param on_select? AmbientPlayListSelectedCallback
----@return AmbientResult<nil, AmbientPlayListSelectorError>
-function M:displayPlaylistSelectorUi(on_select)
-    return selector:displayPlayListSelectUi(function(selected)
-        if selected.ok then
-            resetToReadyAfterPlaylistSelection()
-        end
-
-        if on_select ~= nil then
-            on_select(selected)
-        end
-    end)
-end
-
----@alias AmbientScheduledMusicSelectedCallback fun(result: AmbientResult<AmbientMusic, AmbientPlayListSelectorError|AmbientScheduleError>): nil
-
----@param on_select? AmbientScheduledMusicSelectedCallback
----@return AmbientMusicSelectedCallback
-local function playSelectedMusic(on_select)
-    return function(selected)
-        if not selected.ok then
-            if on_select ~= nil then
-                on_select(result.err(selected.err))
-            end
-            return
-        end
-
-        local played = playAdjacent("next", true)
-        if not played.ok then
-            if on_select ~= nil then
-                on_select(result.err(played.err))
-            end
-            return
-        end
-
-        if on_select ~= nil then
-            on_select(result.ok(selected.value))
-        end
-    end
-end
-
----@param on_select? AmbientScheduledMusicSelectedCallback
----@return AmbientResult<nil, AmbientPlayListSelectorError>
-function M:displayMusicSelectorUi(on_select)
-    return selector:displayMusicItemSelectUi(playSelectedMusic(on_select))
-end
-
----@param on_select? AmbientScheduledMusicSelectedCallback
----@return AmbientResult<nil, AmbientPlayListSelectorError>
-function M:displayCurrentPlaylistMusicSelectorUi(on_select)
-    local current_playlist = selector:getCurrentPlayList()
-    if not current_playlist.ok then
-        return result.err(current_playlist.err)
+---@param selected_playlist AmbientPlayList
+---@param source_index integer
+---@return AmbientResult<AmbientMusic, AmbientPlayListSelectorError|AmbientScheduleError>
+function M:playSelectedMusic(selected_playlist, source_index)
+    local current = selector:current()
+    if not current.ok then
+        return result.err(current.err)
     end
 
-    return selector:displayCurrentPlayListMusicItemSelectUi(
-        current_playlist.value,
-        playSelectedMusic(on_select),
-        M.current_music
-    )
+    if current.value ~= selected_playlist
+        or type(source_index) ~= "number"
+        or source_index % 1 ~= 0
+        or selected_playlist.musics[source_index] == nil then
+        return result.err("INVALID_INDEX")
+    end
+
+    local cursor = nil
+    for position, item_index in ipairs(selected_playlist.sorted_indices) do
+        if item_index == source_index then
+            cursor = position
+            break
+        end
+    end
+
+    if cursor == nil then
+        return result.err("INVALID_INDEX")
+    end
+
+    local positioned = selected_playlist:setCursor(cursor)
+    if not positioned.ok then
+        return result.err("INVALID_INDEX")
+    end
+
+    local music  = selected_playlist.musics[source_index]
+    local played = playAdjacent("next", true)
+    if not played.ok then
+        return result.err(played.err)
+    end
+
+    return result.ok(music)
 end
 
 ---@return AmbientResult<nil, AmbientScheduleError>
@@ -618,11 +646,13 @@ function M:getStatus()
     local current_playlist_path        = nil
     local current_playlist_music_count = nil
 
-    local current_playlist = selector:getCurrentPlayListValue()
-    if current_playlist ~= nil then
-        current_playlist_name        = current_playlist.name
-        current_playlist_path        = current_playlist.abs_path
-        current_playlist_music_count = #current_playlist.musics
+    local current_playlist = selector:current()
+    if current_playlist.ok then
+        local playlist_value            = current_playlist.value
+        ---@cast playlist_value AmbientPlayList
+        current_playlist_name           = playlist_value.name
+        current_playlist_path           = playlist_value.abs_path
+        current_playlist_music_count    = #playlist_value.musics
     end
 
     if self.state == self.State.PLAYING then
