@@ -40,7 +40,29 @@ local function makePlaylist(path, names, sort_field)
         self.cursor = 1
     end
     function item:sort()
+        self.sorted_indices = {}
+        if self.sort_field == "name" and self.sort_direction == "desc" then
+            for index = #self.musics, 1, -1 do
+                table.insert(self.sorted_indices, index)
+            end
+        else
+            for index = 1, #self.musics do
+                table.insert(self.sorted_indices, index)
+            end
+        end
         self.cursor = 1
+    end
+    function item:setSortMethod(field, direction)
+        self.sort_field = field
+        self.sort_direction = direction
+        self:sort()
+    end
+    function item:setCursor(cursor)
+        if self.sorted_indices[cursor] == nil then
+            return result.err("INVALID_ARGUMENT")
+        end
+        self.cursor = cursor
+        return result.ok(nil)
     end
     return item
 end
@@ -53,14 +75,14 @@ local function loadSchedule(options)
     end
 
     local selector = {
-        state = "NOT_READY",
-        items = {},
-        current = nil,
+        state         = "NOT_READY",
+        items         = {},
+        current_index = nil,
     }
     function selector:reset()
-        self.state, self.items, self.current = "NOT_READY", {}, nil
+        self.state, self.items, self.current_index = "NOT_READY", {}, nil
     end
-    function selector:addPlayList(item)
+    function selector:add(item)
         table.insert(self.items, item)
         return result.ok(nil)
     end
@@ -68,46 +90,32 @@ local function loadSchedule(options)
         if #self.items == 0 then
             return result.err("NO_PLAYLISTS")
         end
-        self.state, self.current = "READY", 1
+        self.state, self.current_index = "READY", 1
         return result.ok(nil)
     end
-    function selector:setCurrentPlaylist(index)
+    function selector:select(index)
         if self.items[index] == nil then
             return result.err("INVALID_INDEX")
         end
-        self.current = index
+        self.current_index = index
         return result.ok(nil)
     end
-    function selector:getCurrentPlayListValue()
-        return self.items[self.current]
-    end
-    function selector:getCurrentPlayList()
-        local item = self:getCurrentPlayListValue()
+    function selector:current()
+        local item = self.items[self.current_index]
         if item == nil then
             return result.err("NO_CURRENT_PLAYLIST")
         end
         return result.ok(item)
     end
-    function selector:displayPlayListSelectUi()
-        return result.ok(nil)
-    end
-    function selector:displayMusicItemSelectUi(on_select)
-        self.sorted_music_ui_called = true
-        if options.sorted_music_choice ~= nil then
-            local item = self:getCurrentPlayListValue()
-            item.cursor = options.sorted_music_choice
-            on_select(result.ok(item.musics[item.sorted_indices[item.cursor]]))
+    function selector:snapshot()
+        local items = {}
+        for index, item in ipairs(self.items) do
+            items[index] = item
         end
-        return result.ok(nil)
-    end
-    function selector:displayCurrentPlayListMusicItemSelectUi(item, on_select, current_music)
-        self.ui_playlist = item
-        self.ui_current_music = current_music
-        if options.music_choice ~= nil then
-            item.cursor = options.music_choice
-            on_select(result.ok(item.musics[item.sorted_indices[item.cursor]]))
-        end
-        return result.ok(nil)
+        return result.ok({
+            playlists    = items,
+            current_index = self.current_index,
+        })
     end
 
     local player = {
@@ -194,7 +202,16 @@ local function loadSchedule(options)
     }
 
     package.loaded["ambient.playlist"] = {
-        SortField = { random = "random" },
+        SortField = {
+            name        = "name",
+            modify_time = "modify_time",
+            create_time = "create_time",
+            random      = "random",
+        },
+        SortDirection = {
+            asc  = "asc",
+            desc = "desc",
+        },
         new = function(_, path)
             local item = playlists[path]
             if item == nil then
@@ -377,44 +394,77 @@ t.test("schedule reports every unavailable playlist when none can be loaded", fu
     t.eq(schedule:get_error_message(), "/missing: PATH_NOT_EXIST")
 end)
 
-t.test("sorted music selector uses the sort-first UI and immediately plays its choice", function()
-    local schedule, player, selector, _, config = loadSchedule({ sorted_music_choice = 2 })
+t.test("playlist selection atomically applies its playback sorting method", function()
+    local schedule, player, selector, _, config = loadSchedule({
+        playlists = {
+            ["/one"] = { "a", "b" },
+            ["/two"] = { "x", "y" },
+        },
+    })
     schedule:setup(config)
 
-    local displayed = schedule:displayMusicSelectorUi()
+    local selected = schedule:selectPlaylist(2, "name", "desc")
 
-    t.truthy(displayed.ok)
-    t.truthy(selector.sorted_music_ui_called)
-    t.eq(player.played, { "b" })
+    t.truthy(selected.ok)
+    local current = selector:current().value
+    t.eq(current.name, "two")
+    t.eq(current.sort_field, "name")
+    t.eq(current.sort_direction, "desc")
+    t.eq(current.sorted_indices, { 2, 1 })
+    t.truthy(schedule:start().ok)
+    t.eq(player.played, { "y" })
 end)
 
-t.test("current music selector receives the current playlist and immediately plays its choice", function()
-    local schedule, player, selector, _, config = loadSchedule({ music_choice = 2 })
+t.test("invalid playlist sorting leaves the current playlist unchanged", function()
+    local schedule, _, selector, _, config = loadSchedule({
+        playlists = {
+            ["/one"] = { "a" },
+            ["/two"] = { "x" },
+        },
+    })
     schedule:setup(config)
 
-    local selected_music
-    local displayed = schedule:displayCurrentPlaylistMusicSelectorUi(function(selected)
-        t.truthy(selected.ok)
-        selected_music = selected.value
-    end)
+    t.eq(schedule:selectPlaylist(2, "name", nil).err, "INVALID_SORT")
+    t.eq(schedule:selectPlaylist(2, "invalid", "asc").err, "INVALID_SORT")
+    t.eq(selector:current().value.name, "one")
+end)
 
-    t.truthy(displayed.ok)
-    t.falsy(selector.sorted_music_ui_called)
-    t.eq(selector.ui_playlist, selector:getCurrentPlayListValue())
-    t.eq(selected_music.name, "b")
+t.test("schedule rejects a stale playlist picker choice", function()
+    local schedule, _, selector, _, config = loadSchedule({
+        playlists = {
+            ["/one"] = { "a" },
+            ["/two"] = { "x" },
+        },
+    })
+    schedule:setup(config)
+
+    local stale = makePlaylist("/stale", { "z" })
+    t.eq(schedule:selectPlaylist(2, "name", "asc", stale).err, "INVALID_INDEX")
+    t.eq(selector:current().value.name, "one")
+end)
+
+t.test("schedule synchronously plays a selected source index", function()
+    local schedule, player, selector, _, config = loadSchedule()
+    schedule:setup(config)
+    local current = selector:current().value
+
+    local played = schedule:playSelectedMusic(current, 2)
+
+    t.truthy(played.ok)
+    t.eq(played.value, current.musics[2])
     t.eq(player.played, { "b" })
     t.eq(schedule:getStatus().current_music_name, "b")
 end)
 
-t.test("current music selector forwards the playing track as the initial focus", function()
-    local schedule, _, selector, _, config = loadSchedule()
+t.test("schedule rejects stale or invalid selected music", function()
+    local schedule, player, selector, _, config = loadSchedule()
     schedule:setup(config)
-    schedule:start()
+    local current = selector:current().value
 
-    local displayed = schedule:displayCurrentPlaylistMusicSelectorUi()
-
-    t.truthy(displayed.ok)
-    t.eq(selector.ui_current_music.name, "a")
+    t.eq(schedule:playSelectedMusic(makePlaylist("/stale", { "x" }), 1).err,
+        "INVALID_INDEX")
+    t.eq(schedule:playSelectedMusic(current, 99).err, "INVALID_INDEX")
+    t.eq(player.played, {})
 end)
 
 t.test("status has a direct internal snapshot and a compatible public Result", function()

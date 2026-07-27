@@ -26,7 +26,7 @@ Neovim.
 ### Playlists
 
 Load music from one directory, multiple directories, or explicit playlists,
-then switch the active playlist interactively.
+then choose the active playlist and its playback sorting method interactively.
 
 <!-- AMBIENT_DEMO_PLAYLISTS -->
 https://github.com/user-attachments/assets/eac41a34-67a3-41bc-9829-b81bedac1b90
@@ -220,7 +220,7 @@ interval = {
 | `:Ambient display`                               | Show the current-track popup again.                                   |
 | `:Ambient toggle pause`                          | Pause, resume, or start playback immediately.                         |
 | `:Ambient toggle stop`                           | Toggle between active playback/scheduling and stopped.                |
-| `:Ambient select playlist`                       | Select the active playlist.                                           |
+| `:Ambient select playlist`                       | Select the active playlist and its playback sorting method.            |
 | `:Ambient select music`                          | Choose a display sort, then select and play a track.                  |
 | `:Ambient select current-playlist-music`         | Select and play from the active playlist's current playback position. |
 | `:Ambient progress toggle`                       | Show or hide the statusline progress component.                       |
@@ -242,9 +242,9 @@ behavior. Use `:Ambient toggle pause` or
 `require("ambient").toggle_pause_resume()` when you want pause/resume behavior.
 
 When multiple playlists are configured, the first non-empty one is active after
-setup. `:Ambient select playlist` uses `vim.ui.select()` to choose another playlist. The
-current playback or interval is stopped, and the scheduler returns to `READY`
-with the selected playlist.
+setup. `:Ambient select playlist` uses `vim.ui.select()` to choose another
+playlist and then its playback sorting method. The current playback or interval
+is stopped, and the scheduler returns to `READY` with the selected playlist.
 
 `:Ambient select music` first prompts for a display sort order, then prompts for
 a track from the active playlist and plays it immediately.
