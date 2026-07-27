@@ -101,6 +101,12 @@ local function loadAmbient(options)
         return options.schedule_last_error
     end
 
+    local player = {
+        state = {
+            current = nil,
+        },
+    }
+
     local progress = {}
     function progress:setup()
         return result.ok(nil)
@@ -119,6 +125,26 @@ local function loadAmbient(options)
     end
     function progress:statusline()
         return "statusline"
+    end
+
+    local focus = {
+        initialized = options.focus_initialized == true,
+        init_count  = 0,
+        start_count = 0,
+    }
+
+    function focus:init()
+        self.init_count = self.init_count + 1
+        local initialized = options.focus_init_result or result.ok(nil)
+        if initialized.ok then
+            self.initialized = true
+        end
+        return initialized
+    end
+
+    function focus:startOneFocusEpoch()
+        self.start_count = self.start_count + 1
+        return options.focus_start_result or result.ok(nil)
     end
 
     local display = {
@@ -210,9 +236,11 @@ local function loadAmbient(options)
 
     package.loaded["ambient.config"]              = config
     package.loaded["ambient.schedule"]            = schedule
+    package.loaded["ambient.player"]              = player
     package.loaded["ambient.selection"]           = selection
     package.loaded["ambient.components.progress"] = progress
     package.loaded["ambient.components.track_popup"] = display
+    package.loaded["ambient.bonus.focus"]         = focus
     t.clearModules("ambient.init")
     local ambient = require("ambient.init")
     return ambient,
@@ -225,7 +253,9 @@ local function loadAmbient(options)
         command_options,
         display,
         autocmds,
-        selection
+        selection,
+        focus,
+        player
 end
 
 t.test("init replaces flat commands with the Ambient command tree", function()
@@ -245,7 +275,7 @@ t.test("init replaces flat commands with the Ambient command tree", function()
 end)
 
 t.test("track events show and refresh the popup", function()
-    local ambient, schedule, _, _, _, _, display, autocmds = loadAmbient()
+    local ambient, schedule, _, _, _, _, display, autocmds, _, _, player = loadAmbient()
     t.truthy(ambient.setup().ok)
 
     local callbacks = {}
@@ -269,6 +299,23 @@ t.test("track events show and refresh the popup", function()
     schedule.current_music = nil
     callbacks.AmbientStateChanged()
     t.falsy(display.open)
+
+    player.state.current = {
+        name      = "Focus",
+        abs_path  = "/bonus/focus.ogg",
+        cover_pic = {
+            path = "/tmp/focus-cover.png",
+        },
+    }
+    callbacks.AmbientTrackChanged()
+    t.eq(#display.shown, 2)
+    t.eq(display.shown[2].item, player.state.current)
+
+    callbacks.AmbientTrackInfoUpdated()
+    t.eq(display.refresh_count, 2)
+
+    callbacks.AmbientStateChanged()
+    t.truthy(display.open)
 end)
 
 t.test("init routes sorted and current-playlist music commands separately", function()
@@ -314,6 +361,7 @@ t.test("Ambient command completion follows the command tree", function()
 
     t.eq(complete("", "Ambient ", 8), {
         "display",
+        "focus",
         "next",
         "pause",
         "previous",
@@ -331,6 +379,32 @@ t.test("Ambient command completion follows the command tree", function()
     t.eq(complete("", "Ambient progress ", 17), { "toggle" })
     t.eq(complete("", "Ambient status ", 15), {})
     t.truthy(commands.Ambient)
+end)
+
+t.test("Ambient focus initializes and starts a focus epoch", function()
+    local ambient, _, commands, _, _, _, _, _, _, focus = loadAmbient()
+    ambient.register_commands()
+
+    commands.Ambient({ args = "focus" })
+
+    t.eq(focus.init_count, 1)
+    t.eq(focus.start_count, 1)
+end)
+
+t.test("Ambient focus reports initialization errors without starting", function()
+    local ambient, _, commands, notifications, _, _, _, _, _, focus = loadAmbient({
+        config = {
+            enable            = true,
+            show_notification = { disable_all = false },
+        },
+        focus_init_result = result.err("FOCUS_INIT_FAILED"),
+    })
+    ambient.register_commands()
+
+    commands.Ambient({ args = "focus" })
+
+    t.eq(focus.start_count, 0)
+    t.truthy(notifications[1]:match("FOCUS_INIT_FAILED"))
 end)
 
 t.test("init can show the current track on demand", function()

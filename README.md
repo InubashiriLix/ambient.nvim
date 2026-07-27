@@ -1,5 +1,7 @@
 # ambient.nvim
 
+<!-- /𝙋𝙍⃟𝙏𝙎/ -->
+
 [中文](./README.zh-CN.md) | [vimdoc](./doc/ambient.txt)
 
 Game-style ambient music for Neovim.
@@ -29,7 +31,8 @@ Load music from one directory, multiple directories, or explicit playlists,
 then choose the active playlist and its playback sorting method interactively.
 
 <!-- AMBIENT_DEMO_PLAYLISTS -->
-https://github.com/user-attachments/assets/eac41a34-67a3-41bc-9829-b81bedac1b90
+
+<https://github.com/user-attachments/assets/eac41a34-67a3-41bc-9829-b81bedac1b90>
 
 ### Track selection and sorting
 
@@ -37,7 +40,8 @@ Choose a display sort order, select a track, or browse from the active
 playlist's current playback position.
 
 <!-- AMBIENT_DEMO_TRACK_SELECTION -->
-https://github.com/user-attachments/assets/cdee5e17-bb9c-4316-ac77-94c221d5a0ce
+
+<https://github.com/user-attachments/assets/cdee5e17-bb9c-4316-ac77-94c221d5a0ce>
 
 ### Current-track popup
 
@@ -45,7 +49,8 @@ Show the track title, artist, album, and cover art in a short-lived corner
 popup, either automatically or on demand.
 
 <!-- AMBIENT_DEMO_TRACK_POPUP -->
-https://github.com/user-attachments/assets/0d403588-c8da-40d8-9ddf-19079b143cf4
+
+<https://github.com/user-attachments/assets/0d403588-c8da-40d8-9ddf-19079b143cf4>
 
 ### Statusline progress
 
@@ -53,14 +58,15 @@ Display track title, elapsed time, progress, scrolling text, built-in bar
 styles, and runtime show/hide behavior through `lualine.nvim`.
 
 <!-- AMBIENT_DEMO_STATUSLINE_PROGRESS -->
-https://github.com/user-attachments/assets/43689280-f75f-4a6d-8507-93c3feb7331e
+
+<https://github.com/user-attachments/assets/43689280-f75f-4a6d-8507-93c3feb7331e>
 
 ### Commands, completion, status, and notifications
 
 Use the `:Ambient` command tree and its completion, inspect scheduler status,
 and receive configurable lifecycle notifications.
 
-https://github.com/user-attachments/assets/aed74d1e-7a12-4fe2-a9fd-03f5411f18ed
+<https://github.com/user-attachments/assets/aed74d1e-7a12-4fe2-a9fd-03f5411f18ed>
 
 ### Health check
 
@@ -209,25 +215,26 @@ interval = {
 
 ## Commands
 
-| Command                                          | Action                                                                |
-| ------------------------------------------------ | --------------------------------------------------------------------- |
-| `:Ambient start`                                 | Start scheduling and playback.                                        |
-| `:Ambient stop`                                  | Stop scheduling and the current track.                                |
-| `:Ambient pause`                                 | Pause the current track.                                              |
-| `:Ambient next`                                  | Play the next track now.                                              |
-| `:Ambient previous`                              | Play the previous track from playback history.                        |
-| `:Ambient status`                                | Show the current scheduler status.                                    |
-| `:Ambient display`                               | Show the current-track popup again.                                   |
-| `:Ambient toggle pause`                          | Pause, resume, or start playback immediately.                         |
-| `:Ambient toggle stop`                           | Toggle between active playback/scheduling and stopped.                |
-| `:Ambient select playlist`                       | Select the active playlist and its playback sorting method.            |
-| `:Ambient select music`                          | Choose a display sort, then select and play a track.                  |
-| `:Ambient select current-playlist-music`         | Select and play from the active playlist's current playback position. |
-| `:Ambient progress toggle`                       | Show or hide the statusline progress component.                       |
-| `:Ambient sisyphus`                              | Run the bonus Sisyphus animation and music.                            |
+| Command                                  | Action                                                                |
+| ---------------------------------------- | --------------------------------------------------------------------- |
+| `:Ambient start`                         | Start scheduling and playback.                                        |
+| `:Ambient stop`                          | Stop scheduling and the current track.                                |
+| `:Ambient pause`                         | Pause the current track.                                              |
+| `:Ambient next`                          | Play the next track now.                                              |
+| `:Ambient previous`                      | Play the previous track from playback history.                        |
+| `:Ambient status`                        | Show the current scheduler status.                                    |
+| `:Ambient display`                       | Show the current-track popup again.                                   |
+| `:Ambient toggle pause`                  | Pause, resume, or start playback immediately.                         |
+| `:Ambient toggle stop`                   | Toggle between active playback/scheduling and stopped.                |
+| `:Ambient select playlist`               | Select the active playlist and its playback sorting method.           |
+| `:Ambient select music`                  | Choose a display sort, then select and play a track.                  |
+| `:Ambient select current-playlist-music` | Select and play from the active playlist's current playback position. |
+| `:Ambient progress toggle`               | Show or hide the statusline progress component.                       |
+| `:Ambient focus`                         | Run one focus/relax cycle with the bundled music.                      |
+| `:Ambient sisyphus`                      | Run the bonus Sisyphus animation and music.                           |
 
 Subcommands support completion at each level. For example, completing after
-`:Ambient select ` offers all selection commands.
+`:Ambient select` offers all selection commands.
 
 ### Command Migration
 
@@ -400,9 +407,9 @@ Top-level options:
 | `show_notification.when_show_total_music_count` | Notify with the number of discovered tracks.                             |
 | `show_notification.when_start_playing`          | Notify when playback starts.                                             |
 | `show_notification.when_toggle_playing_state`   | Notify when playback is toggled.                                         |
-| `track_popup.enabled`                           | Show the current-track popup on track changes.                            |
+| `track_popup.enabled`                           | Show the current-track popup on track changes.                           |
 | `track_popup.duration_ms`                       | Popup lifetime in milliseconds; `0` disables auto-close.                 |
-| `track_popup.position`                          | Popup corner: `top_left`, `top_right`, `bottom_left`, or `bottom_right`.  |
+| `track_popup.position`                          | Popup corner: `top_left`, `top_right`, `bottom_left`, or `bottom_right`. |
 | `track_popup.width` / `height`                  | Preferred popup size in terminal cells.                                  |
 | `track_popup.margin.row` / `.col`               | Distance from the selected corner.                                       |
 | `track_popup.cover.backend`                     | `auto`, `image.nvim`, `ascii`, or `none`.                                |
@@ -468,5 +475,5 @@ This checks `mpv`, optional `ffprobe`, and configured music directories.
 :help ambient-progress
 ```
 
-The repository also includes `test-music/ambient-test.wav` for a quick playback
+The repository also includes `default_assets/ambient-test.wav` for a quick playback
 test.

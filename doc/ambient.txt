@@ -162,6 +162,9 @@ COMMANDS                                                 *ambient-commands*
     progress toggle
         Show or hide the statusline progress component.
 
+    focus
+        Run one focus/relax cycle with the bundled music.
+
 COMMAND MIGRATION                                *ambient-command-migration*
 
 Legacy flat commands such as :AmbientStart and :AmbientSelectMusic are no
