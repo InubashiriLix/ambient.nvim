@@ -12,6 +12,7 @@ local function loadPlayer(options)
     local events         = {}
     local deleted        = {}
     local user_events    = {}
+    local trace          = {}
     local temp_index     = 0
 
     local ipc = {
@@ -82,6 +83,7 @@ local function loadPlayer(options)
             end,
             delete   = function(path)
                 table.insert(deleted, path)
+                table.insert(trace, "delete:" .. path)
                 return 0
             end,
         },
@@ -96,6 +98,7 @@ local function loadPlayer(options)
             nvim_exec_autocmds = function(event, opts)
                 if event == "User" then
                     table.insert(user_events, opts.pattern)
+                    table.insert(trace, "event:" .. opts.pattern)
                 end
             end,
         },
@@ -111,6 +114,7 @@ local function loadPlayer(options)
         async_requests = async_requests,
         deleted        = deleted,
         user_events    = user_events,
+        trace          = trace,
         queueEvent     = function(event)
             table.insert(events, event)
         end,
@@ -212,6 +216,28 @@ t.test("player controls playback and progress through mpv IPC", function()
     t.eq(env.requests[6], { "stop" })
     t.eq(track.release_count, 1)
     t.eq(player.state.state, player.STATE.STOPPED)
+end)
+
+t.test("player releases popup consumers before deleting the old temporary cover", function()
+    local player, env = loadPlayer()
+    local first       = music("first")
+    local second      = music("second")
+    first.cover_pic   = {
+        path      = "/tmp/old-cover.png",
+        temporary = true,
+    }
+    player:setup({ volume = 50 })
+    player:play(first)
+
+    for index = #env.trace, 1, -1 do
+        table.remove(env.trace, index)
+    end
+    player:play(second)
+
+    t.eq(env.trace, {
+        "event:AmbientTrackWillChange",
+        "delete:/tmp/old-cover.png",
+    })
 end)
 
 t.test("player loads metadata and an owned cover after file-loaded", function()

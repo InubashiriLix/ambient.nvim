@@ -86,9 +86,28 @@ local function cleanupPendingCoverPaths()
     M.pending_cover_paths = {}
 end
 
+local function emitTrackWillChange()
+    if vim.api == nil or type(vim.api.nvim_exec_autocmds) ~= "function" then
+        return
+    end
+
+    pcall(vim.api.nvim_exec_autocmds, "User", {
+        pattern  = "AmbientTrackWillChange",
+        modeline = false,
+    })
+end
+
 local function releaseCurrentCover()
-    if M.state.current ~= nil and M.state.current.releaseCoverPic ~= nil then
-        M.state.current:releaseCoverPic()
+    local current = M.state.current
+    if current ~= nil then
+        -- This event is deliberately synchronous. Consumers such as image.nvim
+        -- must drop their reference to the temporary cover before it is
+        -- unlinked below; scheduling the event would recreate the race while a
+        -- later mpv request is inside vim.wait().
+        emitTrackWillChange()
+        if current.releaseCoverPic ~= nil then
+            current:releaseCoverPic()
+        end
     end
 end
 

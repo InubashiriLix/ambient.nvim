@@ -32,6 +32,15 @@ local function registerPopupEvents()
 
     vim.api.nvim_create_autocmd("User", {
         group    = group,
+        pattern  = "AmbientTrackWillChange",
+        desc     = "Release the current popup image before its temporary cover is removed",
+        callback = function()
+            track_popup:close("track-changing")
+        end,
+    })
+
+    vim.api.nvim_create_autocmd("User", {
+        group    = group,
         pattern  = "AmbientTrackChanged",
         desc     = "Show the ambient.nvim track popup",
         callback = function()

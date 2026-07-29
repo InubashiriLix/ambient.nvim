@@ -36,6 +36,16 @@ local function makePlaylist(path, names, sort_field)
         self.cursor = self.cursor + 1
         return self:getCurrent()
     end
+    function item:hasPrev()
+        return self.cursor > 1
+    end
+    function item:prev()
+        if not self:hasPrev() then
+            return nil
+        end
+        self.cursor = self.cursor - 1
+        return self:getCurrent()
+    end
     function item:reset()
         self.cursor = 1
     end
@@ -264,7 +274,7 @@ t.test("schedule emits a dedicated event whenever a track starts", function()
     })
 end)
 
-t.test("schedule traverses previous and future playback history", function()
+t.test("schedule traverses the selected playlist cursor in both directions", function()
     local schedule, player, _, _, config = loadSchedule()
     t.truthy(schedule:setup(config).ok)
     t.truthy(schedule:start().ok)
@@ -279,9 +289,11 @@ t.test("schedule traverses previous and future playback history", function()
     t.truthy(schedule:next().ok)
     t.truthy(schedule:next().ok)
     t.eq(player.played, { "a", "b", "c", "b", "a", "b", "c" })
+    t.eq(schedule.history, nil)
+    t.eq(schedule.future, nil)
 end)
 
-t.test("previous before history is non-destructive", function()
+t.test("previous at the beginning of the playlist is non-destructive", function()
     local schedule, _, _, _, config = loadSchedule()
     schedule:setup(config)
     schedule:start()
@@ -293,6 +305,18 @@ t.test("previous before history is non-destructive", function()
     t.eq(schedule.state, schedule.State.PLAYING)
     t.eq(schedule.event_timer, event_timer)
     t.falsy(event_timer.stopped)
+end)
+
+t.test("next wraps a sequential playlist without creating navigation history", function()
+    local schedule, player, selector, _, config = loadSchedule()
+    schedule:setup(config)
+    schedule:start()
+    schedule:next()
+    schedule:next()
+
+    t.truthy(schedule:next().ok)
+    t.eq(player.played, { "a", "b", "c", "a" })
+    t.eq(selector:current().value.cursor, 1)
 end)
 
 t.test("schedule maps the player's direct error once at its boundary", function()
@@ -337,7 +361,7 @@ t.test("interval EOF waits and then advances", function()
     t.eq(schedule.state, schedule.State.PLAYING)
 end)
 
-t.test("playlist changes reset navigation history", function()
+t.test("playlist changes reset the current playlist position", function()
     local schedule, player, _, _, config = loadSchedule({
         playlists = { ["/one"] = { "a", "b" }, ["/two"] = { "x", "y" } },
     })
@@ -454,6 +478,10 @@ t.test("schedule synchronously plays a selected source index", function()
     t.eq(played.value, current.musics[2])
     t.eq(player.played, { "b" })
     t.eq(schedule:getStatus().current_music_name, "b")
+
+    t.truthy(schedule:next().ok)
+    t.truthy(schedule:previous().ok)
+    t.eq(player.played, { "b", "c", "b" })
 end)
 
 t.test("schedule rejects stale or invalid selected music", function()

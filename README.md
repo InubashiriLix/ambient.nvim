@@ -221,7 +221,7 @@ interval = {
 | `:Ambient stop`                          | Stop scheduling and the current track.                                |
 | `:Ambient pause`                         | Pause the current track.                                              |
 | `:Ambient next`                          | Play the next track now.                                              |
-| `:Ambient previous`                      | Play the previous track from playback history.                        |
+| `:Ambient previous`                      | Play the previous track in the active playlist.                       |
 | `:Ambient status`                        | Show the current scheduler status.                                    |
 | `:Ambient display`                       | Show the current-track popup again.                                   |
 | `:Ambient toggle pause`                  | Pause, resume, or start playback immediately.                         |
@@ -289,8 +289,10 @@ back to a built-in record placeholder. Call
 `require("ambient").show_current_track(duration_ms)` or `:Ambient display` to
 show it manually.
 
-The plugin emits `User AmbientTrackChanged` when a new track starts and
-`User AmbientTrackInfoUpdated` when its metadata or cover becomes available.
+Before releasing a track's temporary cover, the plugin synchronously emits
+`User AmbientTrackWillChange`. It emits `User AmbientTrackChanged` when a new
+track starts and `User AmbientTrackInfoUpdated` when its metadata or cover
+becomes available.
 
 ## Statusline Progress
 

@@ -196,7 +196,7 @@ interval = {
 | `:Ambient stop`                          | 停止调度，并停止当前歌曲。         |
 | `:Ambient pause`                         | 暂停当前歌曲。                     |
 | `:Ambient next`                          | 立刻播放下一首。                   |
-| `:Ambient previous`                      | 播放历史中的上一首。               |
+| `:Ambient previous`                      | 播放当前列表中的上一首。           |
 | `:Ambient status`                        | 显示当前状态。                     |
 | `:Ambient display`                       | 再次显示当前歌曲提示窗。           |
 | `:Ambient toggle pause`                  | 暂停、恢复，或立即开始播放。       |
@@ -260,7 +260,8 @@ track_popup = {
 `require("ambient").show_current_track(duration_ms)` 或执行
 `:Ambient display` 手动显示。
 
-新歌曲开始播放时会触发 `User AmbientTrackChanged`；元数据或封面准备好时会触发
+旧歌曲的临时封面释放前会同步触发 `User AmbientTrackWillChange`；新歌曲开始播放时
+会触发 `User AmbientTrackChanged`；元数据或封面准备好时会触发
 `User AmbientTrackInfoUpdated`。
 
 ## 状态栏进度

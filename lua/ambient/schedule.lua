@@ -69,9 +69,7 @@ local State = {
 ---@field config? AmbientConfig
 ---@field playlists AmbientPlayList[]
 ---@field current_music? AmbientMusic
----@field current_entry? AmbientPlaybackEntry
----@field history AmbientPlaybackEntry[] Tracks before current_entry, oldest first.
----@field future AmbientPlaybackEntry[] Tracks undone by previous(), nearest next track last.
+---@field has_current_position boolean Whether the selected playlist cursor identifies a track that has already played.
 ---@field total_music_count integer
 ---@field interval_timer? AmbientTimer
 ---@field event_timer? AmbientTimer
@@ -86,8 +84,7 @@ local M = {
     State                   = State,
     state                   = State.INIT,
     playlists               = {},
-    history                 = {},
-    future                  = {},
+    has_current_position    = false,
     total_music_count       = 0,
     playlist_warnings       = {},
     random_seed_initialized = false,
@@ -145,12 +142,10 @@ end
 local function resetToReadyAfterPlaylistSelection()
     closeAllTimers()
     player:shutdown()
-    M.current_music    = nil
-    M.current_entry    = nil
-    M.history          = {}
-    M.future           = {}
-    M.next_due_time_ms = nil
-    M.last_error       = nil
+    M.current_music        = nil
+    M.has_current_position = false
+    M.next_due_time_ms     = nil
+    M.last_error           = nil
     setState(M.State.READY)
 end
 
@@ -164,17 +159,27 @@ local function fail(err, message)
     return result.err(err)
 end
 
----@class AmbientPlaybackEntry
----@field music AmbientMusic
----@field playlist AmbientPlayList
----@field sorted_indices integer[] Immutable playlist order used when this track was taken.
----@field cursor integer Playlist cursor immediately after this track was taken.
-
 ---@param item AmbientPlayList
----@return AmbientPlaybackEntry?
-local function takeMusicFromPlaylist(item)
+---@param direction "current" | "next" | "previous"
+---@return AmbientResult<AmbientMusic, AmbientScheduleError>
+local function takeMusicFromPlaylist(item, direction)
     if item:isEmpty() then
-        return nil
+        return result.err(M.Error.EMPTY_PLAYLIST)
+    end
+
+    if direction == "previous" then
+        if not M.has_current_position or not item:hasPrev() then
+            return result.err(M.Error.NO_PREVIOUS_MUSIC)
+        end
+        item:prev()
+    elseif direction == "next" and M.has_current_position then
+        if item:hasNext() then
+            item:next()
+        elseif item.sort_field == playlist.SortField.random then
+            item:sort()
+        else
+            item:reset()
+        end
     end
 
     local current = item:getCurrent()
@@ -184,23 +189,10 @@ local function takeMusicFromPlaylist(item)
     end
 
     if current == nil then
-        return nil
+        return result.err(M.Error.EMPTY_PLAYLIST)
     end
 
-    if item:hasNext() then
-        item:next()
-    elseif item.sort_field == playlist.SortField.random then
-        item:sort()
-    else
-        item:reset()
-    end
-
-    return {
-        music          = current,
-        playlist       = item,
-        sorted_indices = item.sorted_indices,
-        cursor         = item.cursor,
-    }
+    return result.ok(current)
 end
 
 ---@return AmbientResult<nil, AmbientScheduleError>
@@ -297,65 +289,32 @@ scheduleNext = function(delay_ms)
     return result.ok(nil)
 end
 
----@param direction "next" | "previous"
----@param discard_future? boolean
+---@param direction "current" | "next" | "previous"
 ---@return AmbientResult<nil, AmbientScheduleError>
-local function playAdjacent(direction, discard_future)
-    local entry
-    local from_future = false
-    if direction == "previous" then
-        entry = M.history[#M.history]
-        if entry == nil then
-            return result.err(M.Error.NO_PREVIOUS_MUSIC)
-        end
-    else
-        if discard_future then
-            M.future = {}
-        end
-        from_future = #M.future > 0
-        if from_future then
-            entry = M.future[#M.future]
-        else
-            local selected = selector:current()
-            if selected.ok then
-                entry = takeMusicFromPlaylist(selected.value)
-            end
-        end
-        if entry == nil then
-            return fail(M.Error.EMPTY_PLAYLIST)
-        end
+local function playAdjacent(direction)
+    local selected = selector:current()
+    if not selected.ok then
+        return fail(M.Error.EMPTY_PLAYLIST)
+    end
+
+    local taken = takeMusicFromPlaylist(selected.value, direction)
+    if not taken.ok then
+        return result.err(taken.err)
     end
 
     closeTimer("interval_timer")
     closeTimer("event_timer")
     player:drainEvents()
 
-    -- Each history entry remembers which playlist position follows its track.
-    entry.playlist.sorted_indices = entry.sorted_indices
-    entry.playlist.cursor         = entry.cursor
-    local player_error            = player:play(entry.music)
+    local player_error = player:play(taken.value)
     if player_error ~= nil then
         return fail(M.Error.PLAYER_ERROR, player_error)
     end
 
-    if direction == "previous" then
-        table.remove(M.history)
-        if M.current_entry ~= nil then
-            table.insert(M.future, M.current_entry)
-        end
-    else
-        if from_future then
-            table.remove(M.future)
-        end
-        if M.current_entry ~= nil then
-            table.insert(M.history, M.current_entry)
-        end
-    end
-
-    M.current_entry    = entry
-    M.current_music    = entry.music
-    M.next_due_time_ms = nil
-    M.last_error       = nil
+    M.has_current_position = true
+    M.current_music        = taken.value
+    M.next_due_time_ms     = nil
+    M.last_error           = nil
     setState(M.State.PLAYING)
     emitUserEvent("AmbientTrackChanged")
 
@@ -378,15 +337,13 @@ function M:setup(config)
     closeAllTimers()
     player:shutdown()
 
-    self.config            = config
-    self.playlists         = {}
-    self.current_music     = nil
-    self.current_entry     = nil
-    self.history           = {}
-    self.future            = {}
-    self.total_music_count = 0
-    self.last_error        = nil
-    self.playlist_warnings = {}
+    self.config               = config
+    self.playlists            = {}
+    self.current_music        = nil
+    self.has_current_position = false
+    self.total_music_count    = 0
+    self.last_error           = nil
+    self.playlist_warnings    = {}
     selector:reset()
 
     for _, playlist_config in ipairs(config.playlists or {}) do
@@ -598,7 +555,7 @@ function M:playSelectedMusic(selected_playlist, source_index)
     end
 
     local music  = selected_playlist.musics[source_index]
-    local played = playAdjacent("next", true)
+    local played = playAdjacent("current")
     if not played.ok then
         return result.err(played.err)
     end

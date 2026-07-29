@@ -128,7 +128,7 @@ COMMANDS                                                 *ambient-commands*
         Play the next track immediately.
 
     previous
-        Play the previous track from playback history.
+        Play the previous track in the active playlist.
 
     status
         Show the current scheduler status with |vim.notify()|.
@@ -401,6 +401,10 @@ Show the current track manually:
 
 The following |User| events are available for custom interfaces:
 
+AmbientTrackWillChange
+    Fired synchronously before the current track's temporary cover is
+    released. Image consumers should clear references to that cover here.
+
 AmbientTrackChanged
     Fired when a new track starts.
 
@@ -655,7 +659,7 @@ require("ambient").next()                              *ambient.next()*
     Play the next track immediately.
 
 require("ambient").previous()                          *ambient.previous()*
-    Play the previous track from playback history.
+    Play the previous track in the active playlist.
 
 require("ambient").select_playlist(index)              *ambient.select_playlist()*
     Select the active playlist by its one-based index.

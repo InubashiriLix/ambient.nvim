@@ -291,6 +291,10 @@ t.test("track events show and refresh the popup", function()
     }
     callbacks.AmbientTrackChanged()
     t.eq(#display.shown, 1)
+    callbacks.AmbientTrackWillChange()
+    t.falsy(display.open)
+    callbacks.AmbientTrackChanged()
+    t.eq(#display.shown, 2)
 
     schedule.current_music.artist_name = "Ambient Unit"
     callbacks.AmbientTrackInfoUpdated()
@@ -308,8 +312,8 @@ t.test("track events show and refresh the popup", function()
         },
     }
     callbacks.AmbientTrackChanged()
-    t.eq(#display.shown, 2)
-    t.eq(display.shown[2].item, player.state.current)
+    t.eq(#display.shown, 3)
+    t.eq(display.shown[3].item, player.state.current)
 
     callbacks.AmbientTrackInfoUpdated()
     t.eq(display.refresh_count, 2)
