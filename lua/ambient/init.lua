@@ -282,6 +282,61 @@ function M.register_commands()
                     },
                 },
             },
+            -- change the volume
+            volume   = {
+                children = {
+                    up   = {
+                        run = function()
+                            local current_vol = player:getVolume()
+                            local new_vol     = current_vol + 5
+                            if new_vol > 100 then
+                                new_vol = 100
+                            end
+                            local success, msg = player:setVolume(new_vol)
+                            if success then
+                                notify(msg)
+                            else
+                                notify(msg, vim.log.levels.WARN)
+                            end
+                        end,
+                    },
+                    down = {
+                        run = function()
+                            local current_vol = player:getVolume()
+                            local new_vol     = current_vol - 5
+                            if new_vol < 0 then
+                                new_vol = 0
+                            end
+                            local success, msg = player:setVolume(new_vol)
+                            if success then
+                                notify(msg)
+                            else
+                                notify(msg, vim.log.levels.WARN)
+                            end
+                        end,
+                    },
+                    set  = {
+                        raw_arg = true,
+                        ---@param percent string
+                        run     = function(percent)
+                            local target_vol_integer = tonumber(percent)
+                            if target_vol_integer == nil or target_vol_integer > 100 or target_vol_integer < 0 then
+                                notify(
+                                    "Invalid volume percentage: " ..
+                                    percent .. ", pls use a number between 0 and 100",
+                                    vim.log.levels.ERROR)
+                                return
+                            end
+                            local success, msg = player:setVolume(target_vol_integer)
+                            if success then
+                                notify(msg)
+                            else
+                                notify(msg, vim.log.levels.WARN)
+                            end
+                        end,
+                    },
+                },
+            },
             -- bonus
             focus    = {
                 run = function()

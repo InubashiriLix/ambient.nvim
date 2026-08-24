@@ -292,6 +292,7 @@ local function ensureMpvStarted()
     return nil
 end
 
+
 ---@param config AmbientPlayerConfig
 function M:setup(config)
     self:shutdown()
@@ -421,12 +422,20 @@ function M:shutdown()
     self.state.job_id = nil
 end
 
+---@return integer
+function M:getVolume()
+    return self.state.volume
+end
+
 ---@param volume integer
+---@return boolean, string
 function M:setVolume(volume)
     self.state.volume = volume
     if mpv.isStarted() then
         mpv.request({ "set_property", "volume", volume })
+        return true, "volume set to " .. volume
     end
+    return false, "volume not set, mpv not started or other error"
 end
 
 ---@return AmbientPlaybackProgress?
