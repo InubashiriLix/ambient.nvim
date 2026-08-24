@@ -28,6 +28,7 @@ M.STATE = {
 ---@class AmbientPlayerStateInfo
 ---@field state AmbientPlayerState
 ---@field current? AmbientMusic
+---@field default_volume integer
 ---@field volume integer
 ---@field job_id? integer
 ---@field started_at_ms? integer
@@ -46,6 +47,7 @@ M.STATE = {
 M.state = {
     state           = M.STATE.NOT_READY,
     current         = nil,
+    default_volume  = 50,
     volume          = 50,
     job_id          = nil,
     started_at_ms   = nil,
@@ -297,6 +299,7 @@ end
 function M:setup(config)
     self:shutdown()
     self.state.volume          = config.volume or config.volumn_percentage or self.state.volume
+    self.state.default_volume  = self.state.volume
     self.state.current         = nil
     self.state.job_id          = nil
     self.state.started_at_ms   = nil
@@ -428,14 +431,15 @@ function M:getVolume()
 end
 
 ---@param volume integer
----@return boolean, string
+---@return boolean, number?
 function M:setVolume(volume)
-    self.state.volume = volume
     if mpv.isStarted() then
+        -- if stsarted, then set the volume, instead of set it allways
+        self.state.volume = volume
         mpv.request({ "set_property", "volume", volume })
-        return true, "volume set to " .. volume
+        return true, volume
     end
-    return false, "volume not set, mpv not started or other error"
+    return false, nil
 end
 
 ---@return AmbientPlaybackProgress?
