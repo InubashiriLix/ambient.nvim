@@ -463,6 +463,30 @@ function M:previous()
     return playAdjacent("previous")
 end
 
+--- Plays a specific track outside of any playlist (e.g. from `:Ambient play <path>`).
+--- The playlist cursor is left untouched, so `next`/`previous` keep working against
+--- whatever playlist was selected before this call.
+---@param music AmbientMusic
+---@return AmbientResult<nil, AmbientScheduleError>
+function M:playFile(music)
+    closeTimer("interval_timer")
+    closeTimer("event_timer")
+    player:drainEvents()
+
+    local player_error = player:play(music)
+    if player_error ~= nil then
+        return fail(self.Error.PLAYER_ERROR, player_error)
+    end
+
+    self.current_music    = music
+    self.next_due_time_ms = nil
+    self.last_error       = nil
+    setState(self.State.PLAYING)
+    emitUserEvent("AmbientTrackChanged")
+
+    return startEventTimer()
+end
+
 ---@param field SortField
 ---@param direction SortDirection
 ---@return boolean

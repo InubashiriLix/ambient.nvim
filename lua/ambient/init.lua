@@ -4,6 +4,7 @@ require("ambient.typedef")
 
 local result      = require("ambient.common.result")
 local config      = require("ambient.config")
+local music       = require("ambient.models.music")
 local player      = require("ambient.player")
 local progress    = require("ambient.components.progress")
 local schedule    = require("ambient.schedule")
@@ -211,6 +212,14 @@ function M.register_commands()
                     reportResult(M.next())
                 end,
             },
+            play     = {
+                -- raw_arg: consumes the rest of `opts.args` verbatim (may contain spaces),
+                -- so it is special-cased in the dispatch loop instead of being tokenized.
+                raw_arg = true,
+                run     = function(path)
+                    reportResult(M.play(path))
+                end,
+            },
             previous = {
                 run = function()
                     reportResult(M.previous())
@@ -294,12 +303,31 @@ function M.register_commands()
         -- cmd
         function(opts)
             local node = command_root
-            for token in opts.args:gmatch("%S+") do
+            local args = opts.args
+
+            local search_pos = 1
+            while true do
+                local match_start, _match_end, token, token_end = args:find("(%S+)()", search_pos)
+                if match_start == nil then
+                    break
+                end
+
                 if node.children == nil or node.children[token] == nil then
-                    notify("Unknown Ambient command: " .. opts.args, vim.log.levels.ERROR)
+                    notify("Unknown Ambient command: " .. args, vim.log.levels.ERROR)
                     return
                 end
-                node = node.children[token]
+                node       = node.children[token]
+                search_pos = token_end
+
+                if node.raw_arg then
+                    local rest = args:sub(search_pos):match("^%s*(.-)%s*$")
+                    if node.run == nil then
+                        notify("Ambient subcommand requires an argument", vim.log.levels.ERROR)
+                        return
+                    end
+                    node.run(rest)
+                    return
+                end
             end
 
             if node.run == nil then
@@ -339,6 +367,9 @@ function M.register_commands()
                         return {}
                     end
                     node = node.children[token]
+                    if node.raw_arg then
+                        return vim.fn.getcompletion(arg_lead, "file")
+                    end
                 end
 
                 local matches = {}
@@ -484,6 +515,29 @@ function M.next()
     end)
     progress:refresh()
     return nexted
+end
+
+---@param path string
+---@return AmbientResult<nil, any>
+function M.play(path)
+    if type(path) ~= "string" or path:match("^%s*$") ~= nil then
+        return result.err("PLAY_PATH_REQUIRED")
+    end
+
+    local played = withReady(function()
+        local abs_path     = vim.fn.fnamemodify(vim.fn.expand(path), ":p")
+        local music_result = music:new(abs_path)
+        if not music_result.ok then
+            return music_result
+        end
+
+        return schedule:playFile(music_result.value)
+    end)
+    progress:refresh()
+    if played.ok then
+        notify("Ambient playing: " .. path, vim.log.levels.INFO, "when_start_playing")
+    end
+    return played
 end
 
 ---@return AmbientResult<nil, any>

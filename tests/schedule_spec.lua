@@ -523,6 +523,37 @@ t.test("status has a direct internal snapshot and a compatible public Result", f
     t.eq(wrapped.value.current_music_name, "a")
 end)
 
+t.test("playFile plays a track outside the playlist without moving the cursor", function()
+    local schedule, player, selector, _, config = loadSchedule()
+    schedule:setup(config)
+    schedule:start()
+    t.eq(player.played, { "a" })
+
+    local external = { name = "external", abs_path = "/tmp/external.mp3" }
+    local played   = schedule:playFile(external)
+
+    t.truthy(played.ok)
+    t.eq(player.played, { "a", "external" })
+    t.eq(schedule:getStatus().current_music_name, "external")
+    t.eq(schedule.state, schedule.State.PLAYING)
+
+    t.truthy(schedule:next().ok)
+    t.eq(player.played, { "a", "external", "b" })
+    t.eq(selector:current().value.cursor, 2)
+end)
+
+t.test("playFile surfaces the player's error at the schedule boundary", function()
+    local schedule, _, _, _, config = loadSchedule({ play_error = "MPV_START_FAILED" })
+    schedule:setup(config)
+
+    local external = { name = "external", abs_path = "/tmp/external.mp3" }
+    local played   = schedule:playFile(external)
+
+    t.falsy(played.ok)
+    t.eq(played.err, schedule.Error.PLAYER_ERROR)
+    t.eq(schedule.state, schedule.State.ERROR)
+end)
+
 t.test("timer allocation failure becomes a scheduler error", function()
     local schedule, _, _, _, config = loadSchedule({ timer_failure = true })
     schedule:setup(config)
