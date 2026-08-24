@@ -285,53 +285,70 @@ function M.register_commands()
             -- change the volume
             volume   = {
                 children = {
-                    up   = {
+                    up     = {
                         run = function()
-                            local current_vol = player:getVolume()
-                            local new_vol     = current_vol + 5
-                            if new_vol > 100 then
-                                new_vol = 100
-                            end
-                            local success, msg = player:setVolume(new_vol)
-                            if success then
-                                notify(msg)
+                            local success, vol = player:setVolume(math.min(
+                                player:getVolume() + 5,
+                                100))
+                            if success and vol ~= nil then
+                                notify("Volume set to " .. vol)
                             else
-                                notify(msg, vim.log.levels.WARN)
+                                notify("Volume not set, mpv not started or other error",
+                                    vim.log.levels.WARN)
                             end
                         end,
                     },
-                    down = {
+                    down   = {
                         run = function()
-                            local current_vol = player:getVolume()
-                            local new_vol     = current_vol - 5
-                            if new_vol < 0 then
-                                new_vol = 0
-                            end
-                            local success, msg = player:setVolume(new_vol)
-                            if success then
-                                notify(msg)
+                            local success, vol = player:setVolume(math.max(player:getVolume() - 5))
+                            if success and vol ~= nil then
+                                notify("Volume set to " .. vol)
                             else
-                                notify(msg, vim.log.levels.WARN)
+                                notify("Volume not set, mpv not started or other error",
+                                    vim.log.levels.WARN)
                             end
                         end,
                     },
-                    set  = {
+                    silent = {
+                        run = function()
+                            local success, vol = player:setVolume(0)
+                            if success and vol ~= nil then
+                                notify("Ambient silent now")
+                            else
+                                notify("Volume not set, mpv not started or other error",
+                                    vim.log.levels.WARN)
+                            end
+                        end,
+                    },
+                    resume = {
+                        run = function()
+                            local success, vol = player:setVolume(player.state.default_volume)
+                            if success and vol ~= nil then
+                                notify("Volume set to " .. vol)
+                            else
+                                notify("Volume not set, mpv not started or other error",
+                                    vim.log.levels.WARN)
+                            end
+                        end,
+                    },
+                    set    = {
                         raw_arg = true,
-                        ---@param percent string
-                        run     = function(percent)
-                            local target_vol_integer = tonumber(percent)
+                        ---@param target_vol string
+                        run     = function(target_vol)
+                            local target_vol_integer = tonumber(target_vol)
                             if target_vol_integer == nil or target_vol_integer > 100 or target_vol_integer < 0 then
                                 notify(
                                     "Invalid volume percentage: " ..
-                                    percent .. ", pls use a number between 0 and 100",
+                                    target_vol .. ", pls use a number between 0 and 100",
                                     vim.log.levels.ERROR)
                                 return
                             end
-                            local success, msg = player:setVolume(target_vol_integer)
+                            local success, vol = player:setVolume(target_vol_integer)
                             if success then
-                                notify(msg)
+                                notify("Volume set to " .. vol)
                             else
-                                notify(msg, vim.log.levels.WARN)
+                                notify("Volume not set, mpv not started or other error",
+                                    vim.log.levels.WARN)
                             end
                         end,
                     },
