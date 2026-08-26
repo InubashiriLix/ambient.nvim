@@ -140,6 +140,15 @@ local function loadAmbient(options)
         return "statusline"
     end
 
+    local progress_window = { open = false, navigating = false }
+    function progress_window:setup() return result.ok(nil) end
+    function progress_window:close()
+        self.open = false; return result.ok(nil)
+    end
+    function progress_window:toggle()
+        self.open = not self.open; return result.ok(self.open)
+    end
+
     local focus = {
         initialized = options.focus_initialized == true,
         init_count  = 0,
@@ -261,14 +270,15 @@ local function loadAmbient(options)
         },
     }
 
-    package.loaded["ambient.config"]                 = config
-    package.loaded["ambient.schedule"]               = schedule
-    package.loaded["ambient.resume_state"]           = resume_state
-    package.loaded["ambient.player"]                 = player
-    package.loaded["ambient.selection"]              = selection
-    package.loaded["ambient.components.progress"]    = progress
-    package.loaded["ambient.components.track_popup"] = display
-    package.loaded["ambient.bonus.focus"]            = focus
+    package.loaded["ambient.config"]                     = config
+    package.loaded["ambient.schedule"]                   = schedule
+    package.loaded["ambient.resume_state"]               = resume_state
+    package.loaded["ambient.player"]                     = player
+    package.loaded["ambient.selection"]                  = selection
+    package.loaded["ambient.components.progress"]        = progress
+    package.loaded["ambient.components.progress_window"] = progress_window
+    package.loaded["ambient.components.track_popup"]     = display
+    package.loaded["ambient.bonus.focus"]                = focus
     t.clearModules("ambient.init")
     local ambient = require("ambient.init")
     return ambient,
@@ -412,9 +422,22 @@ t.test("Ambient command completion follows the command tree", function()
     t.eq(complete("p", "Ambient p", 9), { "pause", "play", "previous", "progress" })
     t.eq(complete("", "Ambient toggle ", 15), { "pause", "stop" })
     t.eq(complete("current", "Ambient select current", 22), { "current-playlist-music" })
-    t.eq(complete("", "Ambient progress ", 17), { "toggle" })
+    t.eq(complete("", "Ambient progress ", 17), { "toggle", "window" })
     t.eq(complete("", "Ambient status ", 15), {})
     t.truthy(commands.Ambient)
+end)
+
+t.test("Ambient progress window command and Lua API toggle the focused controller", function()
+    local ambient, _, commands = loadAmbient()
+    ambient.register_commands()
+
+    local opened = ambient.toggle_progress_window()
+    t.truthy(opened.ok)
+    t.truthy(opened.value)
+
+    commands.Ambient({ args = "progress window" })
+    local controller = package.loaded["ambient.components.progress_window"]
+    t.falsy(controller.open)
 end)
 
 t.test("Ambient resume delegates saved state and refreshes progress", function()

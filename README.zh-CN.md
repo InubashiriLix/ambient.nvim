@@ -190,27 +190,35 @@ interval = {
 
 ## 命令
 
-| 命令                                     | 作用                               |
-| ---------------------------------------- | ---------------------------------- |
-| `:Ambient start`                         | 开始调度并播放。                   |
-| `:Ambient stop`                          | 停止调度，并停止当前歌曲。         |
-| `:Ambient pause`                         | 暂停当前歌曲。                     |
-| `:Ambient next`                          | 立刻播放下一首。                   |
-| `:Ambient previous`                      | 播放当前列表中的上一首。           |
+| 命令                                     | 作用                                     |
+| ---------------------------------------- | ---------------------------------------- |
+| `:Ambient start`                         | 开始调度并播放。                         |
+| `:Ambient stop`                          | 停止调度，并停止当前歌曲。               |
+| `:Ambient pause`                         | 暂停当前歌曲。                           |
+| `:Ambient next`                          | 立刻播放下一首。                         |
+| `:Ambient previous`                      | 播放当前列表中的上一首。                 |
 | `:Ambient resume`                        | 恢复上次退出时保存的列表曲目并从头播放。 |
-| `:Ambient status`                        | 显示当前状态。                     |
-| `:Ambient display`                       | 再次显示当前歌曲提示窗。           |
-| `:Ambient toggle pause`                  | 暂停、恢复，或立即开始播放。       |
-| `:Ambient toggle stop`                   | 在播放/等待和停止之间切换。        |
-| `:Ambient select playlist`               | 选择当前播放列表及其播放排序方式。 |
-| `:Ambient select music`                  | 先选择显示排序，再选择并播放歌曲。 |
-| `:Ambient select current-playlist-music` | 从当前播放位置选择并播放歌曲。     |
-| `:Ambient progress toggle`               | 显示或隐藏状态栏进度组件。         |
-| `:Ambient focus`                         | 使用内置音乐进行一次专注休息周期。 |
-| `:Ambient sisyphus`                      | 播放西西弗斯彩蛋动画和音乐。       |
+| `:Ambient status`                        | 显示当前状态。                           |
+| `:Ambient display`                       | 再次显示当前歌曲提示窗。                 |
+| `:Ambient toggle pause`                  | 暂停、恢复，或立即开始播放。             |
+| `:Ambient toggle stop`                   | 在播放/等待和停止之间切换。              |
+| `:Ambient select playlist`               | 选择当前播放列表及其播放排序方式。       |
+| `:Ambient select music`                  | 先选择显示排序，再选择并播放歌曲。       |
+| `:Ambient select current-playlist-music` | 从当前播放位置选择并播放歌曲。           |
+| `:Ambient progress toggle`               | 显示或隐藏状态栏进度组件。               |
+| `:Ambient progress window`               | 切换可聚焦的播放进度控制浮窗。           |
+| `:Ambient focus`                         | 使用内置音乐进行一次专注休息周期。       |
+| `:Ambient sisyphus`                      | 播放西西弗斯彩蛋动画和音乐。             |
 
 每一级子命令都支持补全。例如，在 `:Ambient select` 后触发补全会列出所有选择
 命令。
+
+### 播放进度浮窗
+
+使用 `:Ambient progress window` 或 `require("ambient").toggle_progress_window()`
+打开底部的可聚焦横向播放控制条。它显示当前歌曲、已播放/总时长、百分比和每 500 ms
+刷新的实时进度条。按 `h`/`l` 后退/前进五秒，`j`/`k` 下一首/上一首，`q` 或 `Esc`
+关闭。失去焦点、播放停止或通过窗口外方式切歌时，浮窗也会自动关闭。
 
 ### 命令迁移
 

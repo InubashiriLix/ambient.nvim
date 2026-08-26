@@ -13,6 +13,7 @@ M.Error = {
     NO_CURRENT         = "NO_CURRENT",
     PAUSE_FAILED       = "PAUSE_FAILED",
     RESUME_FAILED      = "RESUME_FAILED",
+    SEEK_FAILED        = "SEEK_FAILED",
 }
 
 ---@enum AmbientPlayerState
@@ -471,6 +472,44 @@ function M:getProgress()
         duration_ms = duration_ms,
         percentage  = percentage,
     }
+end
+
+---Seek relative to the current position, keeping Ambient's local progress clock
+---in sync with mpv immediately (rather than waiting for the next poll).
+---@param seconds number
+---@return AmbientPlayerError?
+function M:seekRelative(seconds)
+    if self.state.current == nil then
+        return self.Error.NO_CURRENT
+    end
+    if (self.state.state ~= self.STATE.PLAYING and self.state.state ~= self.STATE.PAUSED)
+        or not mpv.isStarted()
+        or type(seconds) ~= "number"
+    then
+        return self.Error.NOT_READY
+    end
+
+    local progress = self:getProgress()
+    if progress == nil then
+        return self.Error.NO_CURRENT
+    end
+
+    local target_ms = math.max(0, progress.time_ms + math.floor(seconds * 1000))
+    if progress.duration_ms > 0 then
+        target_ms = math.min(target_ms, progress.duration_ms)
+    end
+    local delta_seconds = (target_ms - progress.time_ms) / 1000
+    local sought        = mpv.request({ "seek", delta_seconds, "relative+exact" })
+    if not sought.ok then
+        return fail(self.Error.SEEK_FAILED)
+    end
+
+    local anchor             = self.state.state == self.STATE.PAUSED
+        and self.state.paused_at_ms
+        or uv.now()
+    self.state.started_at_ms = anchor - target_ms - self.state.paused_total_ms
+    self.state.current:setCursorTime(target_ms)
+    return nil
 end
 
 ---@return table[]
