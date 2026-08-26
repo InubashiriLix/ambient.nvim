@@ -9,13 +9,16 @@ local uv = vim.uv or vim.loop
 
 ---@enum AmbientScheduleError
 local Error = {
-    CONFIG_NOT_READY        = "CONFIG_NOT_READY",
-    PLAYLIST_CONFIG_ERROR   = "PLAYLIST_CONFIG_ERROR",
-    PLAYLIST_SELECTOR_ERROR = "PLAYLIST_SELECTOR_ERROR",
-    EMPTY_PLAYLIST          = "EMPTY_PLAYLIST",
-    PLAYER_ERROR            = "PLAYER_ERROR",
-    TIMER_CREATE_FAILED     = "TIMER_CREATE_FAILED",
-    NO_PREVIOUS_MUSIC       = "NO_PREVIOUS_MUSIC",
+    CONFIG_NOT_READY           = "CONFIG_NOT_READY",
+    PLAYLIST_CONFIG_ERROR      = "PLAYLIST_CONFIG_ERROR",
+    PLAYLIST_SELECTOR_ERROR    = "PLAYLIST_SELECTOR_ERROR",
+    EMPTY_PLAYLIST             = "EMPTY_PLAYLIST",
+    PLAYER_ERROR               = "PLAYER_ERROR",
+    TIMER_CREATE_FAILED        = "TIMER_CREATE_FAILED",
+    NO_PREVIOUS_MUSIC          = "NO_PREVIOUS_MUSIC",
+    INVALID_RESUME_STATE       = "INVALID_RESUME_STATE",
+    SAVED_PLAYLIST_UNAVAILABLE = "SAVED_PLAYLIST_UNAVAILABLE",
+    SAVED_TRACK_UNAVAILABLE    = "SAVED_TRACK_UNAVAILABLE",
 }
 
 ---@enum ScheduleState
@@ -70,6 +73,7 @@ local State = {
 ---@field playlists AmbientPlayList[]
 ---@field current_music? AmbientMusic
 ---@field has_current_position boolean Whether the selected playlist cursor identifies a track that has already played.
+---@field current_music_from_playlist boolean Whether the current track was started through the selected playlist.
 ---@field total_music_count integer
 ---@field interval_timer? AmbientTimer
 ---@field event_timer? AmbientTimer
@@ -80,14 +84,15 @@ local State = {
 ---@field selectPlaylist fun(self: AmbientSchedule, index: integer, sort_field?: SortField, sort_direction?: SortDirection, expected_playlist?: AmbientPlayList): AmbientResult<nil, AmbientPlayListSelectorError>
 ---@field playSelectedMusic fun(self: AmbientSchedule, selected_playlist: AmbientPlayList, source_index: integer): AmbientResult<AmbientMusic, AmbientPlayListSelectorError|AmbientScheduleError>
 local M = {
-    Error                   = Error,
-    State                   = State,
-    state                   = State.INIT,
-    playlists               = {},
-    has_current_position    = false,
-    total_music_count       = 0,
-    playlist_warnings       = {},
-    random_seed_initialized = false,
+    Error                       = Error,
+    State                       = State,
+    state                       = State.INIT,
+    playlists                   = {},
+    has_current_position        = false,
+    current_music_from_playlist = false,
+    total_music_count           = 0,
+    playlist_warnings           = {},
+    random_seed_initialized     = false,
 }
 
 local playNow
@@ -142,10 +147,11 @@ end
 local function resetToReadyAfterPlaylistSelection()
     closeAllTimers()
     player:shutdown()
-    M.current_music        = nil
-    M.has_current_position = false
-    M.next_due_time_ms     = nil
-    M.last_error           = nil
+    M.current_music               = nil
+    M.has_current_position        = false
+    M.current_music_from_playlist = false
+    M.next_due_time_ms            = nil
+    M.last_error                  = nil
     setState(M.State.READY)
 end
 
@@ -311,10 +317,11 @@ local function playAdjacent(direction)
         return fail(M.Error.PLAYER_ERROR, player_error)
     end
 
-    M.has_current_position = true
-    M.current_music        = taken.value
-    M.next_due_time_ms     = nil
-    M.last_error           = nil
+    M.has_current_position        = true
+    M.current_music_from_playlist = true
+    M.current_music               = taken.value
+    M.next_due_time_ms            = nil
+    M.last_error                  = nil
     setState(M.State.PLAYING)
     emitUserEvent("AmbientTrackChanged")
 
@@ -337,13 +344,14 @@ function M:setup(config)
     closeAllTimers()
     player:shutdown()
 
-    self.config               = config
-    self.playlists            = {}
-    self.current_music        = nil
-    self.has_current_position = false
-    self.total_music_count    = 0
-    self.last_error           = nil
-    self.playlist_warnings    = {}
+    self.config                      = config
+    self.playlists                   = {}
+    self.current_music               = nil
+    self.has_current_position        = false
+    self.current_music_from_playlist = false
+    self.total_music_count           = 0
+    self.last_error                  = nil
+    self.playlist_warnings           = {}
     selector:reset()
 
     for _, playlist_config in ipairs(config.playlists or {}) do
@@ -418,8 +426,9 @@ end
 function M:stop()
     closeAllTimers()
     player:shutdown()
-    self.current_music    = nil
-    self.next_due_time_ms = nil
+    self.current_music               = nil
+    self.current_music_from_playlist = false
+    self.next_due_time_ms            = nil
     setState(self.State.STOPPED)
     return result.ok(nil)
 end
@@ -478,9 +487,10 @@ function M:playFile(music)
         return fail(self.Error.PLAYER_ERROR, player_error)
     end
 
-    self.current_music    = music
-    self.next_due_time_ms = nil
-    self.last_error       = nil
+    self.current_music               = music
+    self.current_music_from_playlist = false
+    self.next_due_time_ms            = nil
+    self.last_error                  = nil
     setState(self.State.PLAYING)
     emitUserEvent("AmbientTrackChanged")
 
@@ -585,6 +595,108 @@ function M:playSelectedMusic(selected_playlist, source_index)
     end
 
     return result.ok(music)
+end
+
+---@return AmbientResult<table, AmbientScheduleError>
+function M:exportResumeState()
+    local selected = selector:current()
+    if not selected.ok or self.current_music == nil or not self.current_music_from_playlist then
+        return result.err(self.Error.SAVED_TRACK_UNAVAILABLE)
+    end
+
+    local current             = selected.value
+    local belongs_to_playlist = false
+    for _, music in ipairs(current.musics) do
+        if music.abs_path == self.current_music.abs_path then
+            belongs_to_playlist = true
+            break
+        end
+    end
+    if not belongs_to_playlist then
+        return result.err(self.Error.SAVED_TRACK_UNAVAILABLE)
+    end
+
+    return result.ok({
+        playlist_path  = current.abs_path,
+        sort_field     = current.sort_field,
+        sort_direction = current.sort_direction,
+        track_path     = self.current_music.abs_path,
+    })
+end
+
+---@param snapshot table
+---@return AmbientResult<nil, AmbientScheduleError>
+function M:restoreResumeState(snapshot)
+    local valid_sort = snapshot ~= nil
+        and (snapshot.sort_field == playlist.SortField.name
+            or snapshot.sort_field == playlist.SortField.modify_time
+            or snapshot.sort_field == playlist.SortField.create_time
+            or snapshot.sort_field == playlist.SortField.random)
+        and (snapshot.sort_direction == playlist.SortDirection.asc
+            or snapshot.sort_direction == playlist.SortDirection.desc)
+    if type(snapshot) ~= "table"
+        or type(snapshot.playlist_path) ~= "string"
+        or type(snapshot.track_path) ~= "string"
+        or not valid_sort then
+        return result.err(self.Error.INVALID_RESUME_STATE)
+    end
+
+    local target_config
+    for _, configured in ipairs(self.config and self.config.playlists or {}) do
+        if configured.abs_path == snapshot.playlist_path then
+            target_config = configured
+            break
+        end
+    end
+    if target_config == nil then
+        return result.err(self.Error.SAVED_PLAYLIST_UNAVAILABLE)
+    end
+
+    -- Scan into a fresh object first, so unavailable saved data cannot alter the
+    -- running scheduler.
+    local refreshed = playlist:new(target_config.abs_path, target_config.ext,
+        target_config.recursive_depth, snapshot.sort_field, snapshot.sort_direction)
+    if not refreshed.ok then return result.err(self.Error.SAVED_PLAYLIST_UNAVAILABLE) end
+
+    local source_index
+    for index, music in ipairs(refreshed.value.musics) do
+        if music.abs_path == snapshot.track_path then
+            source_index = index
+            break
+        end
+    end
+    if source_index == nil then return result.err(self.Error.SAVED_TRACK_UNAVAILABLE) end
+
+    local cursor
+    for position, index in ipairs(refreshed.value.sorted_indices) do
+        if index == source_index then
+            cursor = position
+            break
+        end
+    end
+    if cursor == nil then return result.err(self.Error.SAVED_TRACK_UNAVAILABLE) end
+
+    local target_index, target
+    for index, item in ipairs(self.playlists) do
+        if item.abs_path == snapshot.playlist_path then
+            target_index, target = index, item
+            break
+        end
+    end
+    if target_index == nil or target == nil then
+        return result.err(self.Error.SAVED_PLAYLIST_UNAVAILABLE)
+    end
+
+    -- Commit only after every recoverable validation has passed. A random
+    -- playlist has been freshly shuffled above, with the saved item repositioned.
+    target.musics         = refreshed.value.musics
+    target.sorted_indices = refreshed.value.sorted_indices
+    target.sort_field     = refreshed.value.sort_field
+    target.sort_direction = refreshed.value.sort_direction
+    target.cursor         = cursor
+    local selected        = selector:select(target_index)
+    if not selected.ok then return result.err(self.Error.SAVED_PLAYLIST_UNAVAILABLE) end
+    return self:playSelectedMusic(target, source_index)
 end
 
 ---@return AmbientResult<nil, AmbientScheduleError>

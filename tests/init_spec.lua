@@ -91,6 +91,19 @@ local function loadAmbient(options)
         return options.play_selected_result
             or result.ok(playlist.musics[source_index])
     end
+    function schedule:exportResumeState()
+        self.export_count = (self.export_count or 0) + 1
+        return options.export_resume_result or result.ok({
+            playlist_path  = "/music",
+            sort_field     = "name",
+            sort_direction = "asc",
+            track_path     = "/music/a.wav",
+        })
+    end
+    function schedule:restoreResumeState(snapshot)
+        self.restored_snapshot = snapshot
+        return options.restore_resume_result or result.ok(nil)
+    end
     function schedule:getStatus()
         return self.status_value
     end
@@ -134,7 +147,7 @@ local function loadAmbient(options)
     }
 
     function focus:init()
-        self.init_count = self.init_count + 1
+        self.init_count   = self.init_count + 1
         local initialized = options.focus_init_result or result.ok(nil)
         if initialized.ok then
             self.initialized = true
@@ -190,6 +203,20 @@ local function loadAmbient(options)
         },
     }
 
+    local resume_state = { saved = {} }
+    function resume_state.save(snapshot)
+        table.insert(resume_state.saved, snapshot)
+        return result.ok(nil)
+    end
+    function resume_state.load()
+        return options.resume_load_result or result.ok({
+            playlist_path  = "/music",
+            sort_field     = "name",
+            sort_direction = "asc",
+            track_path     = "/music/a.wav",
+        })
+    end
+
     function selection.select_playlist(notify_fn)
         selection.calls.playlist = selection.calls.playlist + 1
         selection.notify         = notify_fn
@@ -234,13 +261,14 @@ local function loadAmbient(options)
         },
     }
 
-    package.loaded["ambient.config"]              = config
-    package.loaded["ambient.schedule"]            = schedule
-    package.loaded["ambient.player"]              = player
-    package.loaded["ambient.selection"]           = selection
-    package.loaded["ambient.components.progress"] = progress
+    package.loaded["ambient.config"]                 = config
+    package.loaded["ambient.schedule"]               = schedule
+    package.loaded["ambient.resume_state"]           = resume_state
+    package.loaded["ambient.player"]                 = player
+    package.loaded["ambient.selection"]              = selection
+    package.loaded["ambient.components.progress"]    = progress
     package.loaded["ambient.components.track_popup"] = display
-    package.loaded["ambient.bonus.focus"]         = focus
+    package.loaded["ambient.bonus.focus"]            = focus
     t.clearModules("ambient.init")
     local ambient = require("ambient.init")
     return ambient,
@@ -255,7 +283,8 @@ local function loadAmbient(options)
         autocmds,
         selection,
         focus,
-        player
+        player,
+        resume_state
 end
 
 t.test("init replaces flat commands with the Ambient command tree", function()
@@ -368,21 +397,49 @@ t.test("Ambient command completion follows the command tree", function()
         "focus",
         "next",
         "pause",
+        "play",
         "previous",
         "progress",
+        "resume",
         "select",
         "sisyphus",
         "start",
         "status",
         "stop",
         "toggle",
+        "volume",
     })
-    t.eq(complete("p", "Ambient p", 9), { "pause", "previous", "progress" })
+    t.eq(complete("p", "Ambient p", 9), { "pause", "play", "previous", "progress" })
     t.eq(complete("", "Ambient toggle ", 15), { "pause", "stop" })
     t.eq(complete("current", "Ambient select current", 22), { "current-playlist-music" })
     t.eq(complete("", "Ambient progress ", 17), { "toggle" })
     t.eq(complete("", "Ambient status ", 15), {})
     t.truthy(commands.Ambient)
+end)
+
+t.test("Ambient resume delegates saved state and refreshes progress", function()
+    local ambient, schedule, commands, _, refresh = loadAmbient()
+    ambient.register_commands()
+
+    commands.Ambient({ args = "resume" })
+
+    t.eq(schedule.restored_snapshot.track_path, "/music/a.wav")
+    t.eq(refresh(), 1)
+end)
+
+t.test("exit snapshots the playlist state before stopping playback", function()
+    local ambient, schedule, _, _, _, _, _, autocmds, _, _, _, resume_state = loadAmbient()
+    ambient.register_commands()
+    local callback
+    for _, autocmd in ipairs(autocmds) do
+        if autocmd.event == "VimLeavePre" then callback = autocmd.value.callback end
+    end
+
+    callback()
+
+    t.eq(schedule.export_count, 1)
+    t.eq(#resume_state.saved, 1)
+    t.eq(resume_state.saved[1].track_path, "/music/a.wav")
 end)
 
 t.test("Ambient focus initializes and starts a focus epoch", function()
@@ -397,7 +454,7 @@ end)
 
 t.test("Ambient focus reports initialization errors without starting", function()
     local ambient, _, commands, notifications, _, _, _, _, _, focus = loadAmbient({
-        config = {
+        config            = {
             enable            = true,
             show_notification = { disable_all = false },
         },

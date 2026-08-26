@@ -2,14 +2,15 @@ local M = {}
 
 require("ambient.typedef")
 
-local result      = require("ambient.common.result")
-local config      = require("ambient.config")
-local music       = require("ambient.models.music")
-local player      = require("ambient.player")
-local progress    = require("ambient.components.progress")
-local schedule    = require("ambient.schedule")
-local selection   = require("ambient.selection")
-local track_popup = require("ambient.components.track_popup")
+local result       = require("ambient.common.result")
+local config       = require("ambient.config")
+local music        = require("ambient.models.music")
+local player       = require("ambient.player")
+local progress     = require("ambient.components.progress")
+local schedule     = require("ambient.schedule")
+local resume_state = require("ambient.resume_state")
+local selection    = require("ambient.selection")
+local track_popup  = require("ambient.components.track_popup")
 
 -- bonus
 local focus    = require("ambient.bonus.focus")
@@ -19,6 +20,10 @@ local commands_registered     = false
 local popup_events_registered = false
 
 local function stopPlaybackOnExit()
+    local snapshot = schedule:exportResumeState()
+    if snapshot.ok then
+        resume_state.save(snapshot.value)
+    end
     track_popup:close("exit")
     pcall(schedule.stop, schedule)
 end
@@ -223,6 +228,11 @@ function M.register_commands()
             previous = {
                 run = function()
                     reportResult(M.previous())
+                end,
+            },
+            resume   = {
+                run = function()
+                    reportResult(M.resume())
                 end,
             },
             status   = {
@@ -610,6 +620,26 @@ function M.play(path)
         notify("Ambient playing: " .. path, vim.log.levels.INFO, "when_start_playing")
     end
     return played
+end
+
+---@return AmbientResult<nil, any>
+function M.resume()
+    local resumed = withReady(function()
+        local saved = resume_state.load()
+        if not saved.ok then
+            return saved
+        end
+        return schedule:restoreResumeState(saved.value)
+    end)
+    progress:refresh()
+    if resumed.ok then
+        local status = schedule:getStatus()
+        if status.current_music_name ~= nil then
+            notify("Ambient playing: " .. status.current_music_name, vim.log.levels.INFO,
+                "when_start_playing")
+        end
+    end
+    return resumed
 end
 
 ---@return AmbientResult<nil, any>

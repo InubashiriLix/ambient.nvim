@@ -197,6 +197,7 @@ interval = {
 | `:Ambient pause`                         | 暂停当前歌曲。                     |
 | `:Ambient next`                          | 立刻播放下一首。                   |
 | `:Ambient previous`                      | 播放当前列表中的上一首。           |
+| `:Ambient resume`                        | 恢复上次退出时保存的列表曲目并从头播放。 |
 | `:Ambient status`                        | 显示当前状态。                     |
 | `:Ambient display`                       | 再次显示当前歌曲提示窗。           |
 | `:Ambient toggle pause`                  | 暂停、恢复，或立即开始播放。       |
@@ -224,6 +225,11 @@ interval = {
 配置多个播放列表时，setup 后默认选择第一个非空列表。`:Ambient select playlist`
 通过 `vim.ui.select()` 依次选择播放列表及其播放排序方式；当前播放或等待会停止，
 调度器使用新列表回到 `READY` 状态。
+
+`:Ambient resume`（或 `require("ambient").resume()`）会显式恢复上次正常退出时
+保存的播放列表、排序方式和列表曲目，并从 0:00 重新播放。随机排序会重新洗牌，
+但保存的曲目仍为当前曲目。setup 不会自动恢复；没有状态、状态损坏、列表或曲目
+不可用时只会报告 Ambient 错误，不会改为播放其他歌曲。
 
 `:Ambient select music` 会先选择列表的显示排序方式，再从当前播放列表选择歌曲并
 立刻播放。
