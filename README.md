@@ -222,6 +222,7 @@ interval = {
 | `:Ambient pause`                         | Pause the current track.                                              |
 | `:Ambient next`                          | Play the next track now.                                              |
 | `:Ambient previous`                      | Play the previous track in the active playlist.                       |
+| `:Ambient resume`                        | Restore and restart the playlist track saved on the last exit.        |
 | `:Ambient status`                        | Show the current scheduler status.                                    |
 | `:Ambient display`                       | Show the current-track popup again.                                   |
 | `:Ambient toggle pause`                  | Pause, resume, or start playback immediately.                         |
@@ -252,6 +253,12 @@ When multiple playlists are configured, the first non-empty one is active after
 setup. `:Ambient select playlist` uses `vim.ui.select()` to choose another
 playlist and then its playback sorting method. The current playback or interval
 is stopped, and the scheduler returns to `READY` with the selected playlist.
+
+`:Ambient resume` (or `require("ambient").resume()`) explicitly restores the
+playlist, sort method, and playlist track saved during the last normal exit.
+The track starts again at 0:00. Random playlists are reshuffled while keeping
+the saved track current. Setup never resumes automatically; missing, corrupt,
+or unavailable saved state reports an Ambient error without starting another song.
 
 `:Ambient select music` first prompts for a display sort order, then prompts for
 a track from the active playlist and plays it immediately.

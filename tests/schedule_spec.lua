@@ -484,6 +484,58 @@ t.test("schedule synchronously plays a selected source index", function()
     t.eq(player.played, { "b", "c", "b" })
 end)
 
+t.test("schedule restores a saved playlist track from its beginning", function()
+    local schedule, player, selector, _, config = loadSchedule()
+    schedule:setup(config)
+
+    local restored = schedule:restoreResumeState({
+        playlist_path  = "/one",
+        sort_field     = "name",
+        sort_direction = "asc",
+        track_path     = "/one/b.wav",
+    })
+
+    t.truthy(restored.ok)
+    t.eq(player.played, { "b" })
+    t.eq(selector:current().value.cursor, 2)
+    t.eq(schedule.current_music.abs_path, "/one/b.wav")
+end)
+
+t.test("saved resume failures leave the active scheduler untouched", function()
+    local schedule, player, selector, _, config = loadSchedule()
+    schedule:setup(config)
+    local original = selector:current().value
+
+    local unavailable = schedule:restoreResumeState({
+        playlist_path  = "/missing",
+        sort_field     = "name",
+        sort_direction = "asc",
+        track_path     = "/missing/a.wav",
+    })
+    t.eq(unavailable.err, schedule.Error.SAVED_PLAYLIST_UNAVAILABLE)
+    t.eq(selector:current().value, original)
+
+    local deleted = schedule:restoreResumeState({
+        playlist_path  = "/one",
+        sort_field     = "name",
+        sort_direction = "asc",
+        track_path     = "/one/deleted.wav",
+    })
+    t.eq(deleted.err, schedule.Error.SAVED_TRACK_UNAVAILABLE)
+    t.eq(selector:current().value, original)
+    t.eq(player.played, {})
+end)
+
+t.test("ad-hoc playback does not replace the saved playlist resume target", function()
+    local schedule, _, _, _, config = loadSchedule()
+    schedule:setup(config)
+    schedule:start()
+    local ad_hoc = { name = "external", abs_path = "/external.wav" }
+    t.truthy(schedule:playFile(ad_hoc).ok)
+
+    t.eq(schedule:exportResumeState().err, schedule.Error.SAVED_TRACK_UNAVAILABLE)
+end)
+
 t.test("schedule rejects stale or invalid selected music", function()
     local schedule, player, selector, _, config = loadSchedule()
     schedule:setup(config)
