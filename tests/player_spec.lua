@@ -218,6 +218,23 @@ t.test("player controls playback and progress through mpv IPC", function()
     t.eq(player.state.state, player.STATE.STOPPED)
 end)
 
+t.test("player seeks relatively, clamps known durations, and updates progress immediately",
+    function()
+        local player, env = loadPlayer()
+        local track       = music("seekable", 10000)
+        player:setup({ volume = 50 })
+        t.eq(player:play(track), nil)
+
+        env.setNow(4000)
+        t.eq(player:seekRelative(5), nil)
+        t.eq(env.requests[4], { "seek", 5, "relative+exact" })
+        t.eq(player:getProgress().time_ms, 8000)
+
+        t.eq(player:seekRelative(10), nil)
+        t.eq(env.requests[5], { "seek", 2, "relative+exact" })
+        t.eq(player:getProgress().time_ms, 10000)
+    end)
+
 t.test("player releases popup consumers before deleting the old temporary cover", function()
     local player, env = loadPlayer()
     local first       = music("first")

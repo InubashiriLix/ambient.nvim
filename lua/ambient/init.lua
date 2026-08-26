@@ -2,15 +2,16 @@ local M = {}
 
 require("ambient.typedef")
 
-local result       = require("ambient.common.result")
-local config       = require("ambient.config")
-local music        = require("ambient.models.music")
-local player       = require("ambient.player")
-local progress     = require("ambient.components.progress")
-local schedule     = require("ambient.schedule")
-local resume_state = require("ambient.resume_state")
-local selection    = require("ambient.selection")
-local track_popup  = require("ambient.components.track_popup")
+local result          = require("ambient.common.result")
+local config          = require("ambient.config")
+local music           = require("ambient.models.music")
+local player          = require("ambient.player")
+local progress        = require("ambient.components.progress")
+local schedule        = require("ambient.schedule")
+local resume_state    = require("ambient.resume_state")
+local selection       = require("ambient.selection")
+local track_popup     = require("ambient.components.track_popup")
+local progress_window = require("ambient.components.progress_window")
 
 -- bonus
 local focus    = require("ambient.bonus.focus")
@@ -25,6 +26,7 @@ local function stopPlaybackOnExit()
         resume_state.save(snapshot.value)
     end
     track_popup:close("exit")
+    progress_window:close("exit")
     pcall(schedule.stop, schedule)
 end
 
@@ -42,6 +44,9 @@ local function registerPopupEvents()
         desc     = "Release the current popup image before its temporary cover is removed",
         callback = function()
             track_popup:close("track-changing")
+            if not progress_window.navigating then
+                progress_window:close("track-changing")
+            end
         end,
     })
 
@@ -84,6 +89,7 @@ local function registerPopupEvents()
         callback = function()
             if player.state.current == nil and schedule.current_music == nil then
                 track_popup:close("playback-ended")
+                progress_window:close("playback-ended")
             end
         end,
     })
@@ -288,6 +294,12 @@ function M.register_commands()
                             else
                                 reportResult(toggled)
                             end
+                        end,
+                    },
+                    window = {
+                        run = function()
+                            local toggled = M.toggle_progress_window()
+                            if not toggled.ok then reportResult(toggled) end
                         end,
                     },
                 },
@@ -499,6 +511,10 @@ function M.setup(opts)
     if not progress_ready.ok then
         notify("Progress setup failed: " .. tostring(progress_ready.err), vim.log.levels.ERROR)
         return progress_ready
+    end
+    local progress_window_ready = progress_window:setup()
+    if not progress_window_ready.ok then
+        return progress_window_ready
     end
 
     local popup_ready = track_popup:setup(cfg.value.track_popup)
@@ -714,6 +730,13 @@ end
 ---@return AmbientResult<boolean, any>
 function M.toggle_progress()
     return progress:toggle()
+end
+
+---@return AmbientResult<boolean, any>
+function M.toggle_progress_window()
+    return withReady(function()
+        return progress_window:toggle()
+    end)
 end
 
 ---@return AmbientResult<nil, any>

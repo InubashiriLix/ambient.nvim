@@ -231,11 +231,21 @@ interval = {
 | `:Ambient select music`                  | Choose a display sort, then select and play a track.                  |
 | `:Ambient select current-playlist-music` | Select and play from the active playlist's current playback position. |
 | `:Ambient progress toggle`               | Show or hide the statusline progress component.                       |
-| `:Ambient focus`                         | Run one focus/relax cycle with the bundled music.                      |
+| `:Ambient progress window`               | Toggle the focused playback-progress control window.                  |
+| `:Ambient focus`                         | Run one focus/relax cycle with the bundled music.                     |
 | `:Ambient sisyphus`                      | Run the bonus Sisyphus animation and music.                           |
 
 Subcommands support completion at each level. For example, completing after
 `:Ambient select` offers all selection commands.
+
+### Playback progress window
+
+Use `:Ambient progress window` or `require("ambient").toggle_progress_window()`
+to open a focused bottom playback bar. It displays the current track,
+elapsed/total time, percentage, and a live progress bar refreshed every 500 ms.
+Press `h`/`l` to seek back/forward five seconds, `j`/`k` for next/previous
+track, and `q` or `Esc` to close. The window also closes when it loses focus,
+playback stops, or the track changes outside these controls.
 
 ### Command Migration
 
